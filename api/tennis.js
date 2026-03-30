@@ -1,23 +1,39 @@
-module.exports = async (req, res) => {
+const https = require("https");
+
+module.exports = (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method === "OPTIONS") { res.status(200).end(); return; }
 
   const key = req.query.key || "";
   const path = req.query.path || "";
-  if (!key || !path) return res.status(400).json({ error: "Missing key or path" });
+  if (!key || !path) { res.status(400).json({ error: "Missing key or path" }); return; }
 
-  const HOST = "tennis-api-atp-wta-itf.p.rapidapi.com";
-  const url = "https://" + HOST + "/tennis/v2/" + path;
+  const options = {
+    hostname: "tennis-api-atp-wta-itf.p.rapidapi.com",
+    path: "/tennis/v2/" + path,
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": key,
+      "X-RapidAPI-Host": "tennis-api-atp-wta-itf.p.rapidapi.com"
+    }
+  };
 
-  try {
-    const r = await fetch(url, {
-      headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": HOST }
+  const request = https.request(options, (response) => {
+    let data = "";
+    response.on("data", (chunk) => { data += chunk; });
+    response.on("end", () => {
+      try {
+        res.status(200).json(JSON.parse(data));
+      } catch(e) {
+        res.status(500).json({ error: "Parse error", raw: data.slice(0, 200) });
+      }
     });
-    const data = await r.json();
-    res.status(200).json(data);
-  } catch (e) {
+  });
+
+  request.on("error", (e) => {
     res.status(500).json({ error: e.message });
-  }
+  });
+
+  request.end();
 };
