@@ -1,6 +1,6 @@
-const https = require("https");
+import https from "https";
 
-module.exports = (req, res) => {
+export default function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
@@ -26,14 +26,11 @@ module.exports = (req, res) => {
       try {
         res.status(200).json(JSON.parse(data));
       } catch(e) {
-        res.status(500).json({ error: "Parse error", raw: data.slice(0, 200) });
+        res.status(500).json({ error: "Parse error", raw: data.slice(0, 300) });
       }
     });
   });
 
-  request.on("error", (e) => {
-    res.status(500).json({ error: e.message });
-  });
-
+  request.on("error", (e) => res.status(500).json({ error: e.message }));
   request.end();
-};
+}
