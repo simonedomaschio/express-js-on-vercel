@@ -17,7 +17,7 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel">
+  <script type="text/babel" data-type="module">
     const { useState, useRef, useEffect } = React;
 
 
@@ -812,7 +812,7 @@ function StatsCompare({p1,p2}){
 }
 
 // ── APP ───────────────────────────────────────────────────────────────────
-export default function App(){
+function App(){
   const [p1,setP1]=useState("Jannik Sinner");
   const [p2,setP2]=useState("Jiri Lehecka");
   const [torneo,setTorneo]=useState("Miami Open");
