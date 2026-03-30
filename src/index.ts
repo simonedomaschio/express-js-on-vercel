@@ -1,52 +1,54 @@
-import express from 'express'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import express, { Request, Response } from "express";
+import https from "https";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const app = express();
 
-const app = express()
+app.use((req: Request, res: Response, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  next();
+});
 
-// Home route - HTML
-app.get('/', (req, res) => {
-  res.type('html').send(`
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8"/>
-        <title>Express on Vercel</title>
-        <link rel="stylesheet" href="/style.css" />
-      </head>
-      <body>
-        <nav>
-          <a href="/">Home</a>
-          <a href="/about">About</a>
-          <a href="/api-data">API Data</a>
-          <a href="/healthz">Health</a>
-        </nav>
-        <h1>Welcome to Express on Vercel 🚀</h1>
-        <p>This is a minimal example without a database or forms.</p>
-        <img src="/logo.png" alt="Logo" width="120" />
-      </body>
-    </html>
-  `)
-})
+app.options("/api/tennis", (req: Request, res: Response) => {
+  res.status(200).end();
+});
 
-app.get('/about', function (req, res) {
-  res.sendFile(path.join(__dirname, '..', 'components', 'about.htm'))
-})
+app.get("/api/tennis", (req: Request, res: Response) => {
+  const key = (req.query.key as string) || "";
+  const path = (req.query.path as string) || "";
 
-// Example API endpoint - JSON
-app.get('/api-data', (req, res) => {
-  res.json({
-    message: 'Here is some sample API data',
-    items: ['apple', 'banana', 'cherry'],
-  })
-})
+  if (!key || !path) {
+    res.status(400).json({ error: "Missing key or path" });
+    return;
+  }
 
-// Health check
-app.get('/healthz', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() })
-})
+  const options = {
+    hostname: "tennis-api-atp-wta-itf.p.rapidapi.com",
+    path: "/tennis/v2/" + path,
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": key,
+      "X-RapidAPI-Host": "tennis-api-atp-wta-itf.p.rapidapi.com",
+    },
+  };
 
-export default app
+  const request = https.request(options, (response) => {
+    let data = "";
+    response.on("data", (chunk) => { data += chunk; });
+    response.on("end", () => {
+      try {
+        res.status(200).json(JSON.parse(data));
+      } catch (e) {
+        res.status(500).json({ error: "Parse error", raw: data.slice(0, 200) });
+      }
+    });
+  });
+
+  request.on("error", (e) => {
+    res.status(500).json({ error: e.message });
+  });
+
+  request.end();
+});
+
+export default app;
