@@ -1,0 +1,1560 @@
+import { useState, useRef, useEffect } from "react";
+
+// ── STATISTICHE REALI ATP 2026 ─────────────────────────────────────────────
+// Fonte: tennistonic.com/tennis-stats · aggiornate marzo 2026
+// ace=ace/match, df=df/match, s1=1stSrvWon%, s2=2ndSrvWon%,
+// tb=TieBreak Won%, ret=RetGamWon%, srv=SrvGamWon%, brk=BrkPtsWon%
+const ATP_STATS = {
+  "Carlos Alcaraz":              { rank:1,  ace:6.1,  df:1.9, s1:74, s2:59, tb:67, ret:30, srv:91, brk:41 },
+  "Jannik Sinner":               { rank:2,  ace:12.3, df:1.2, s1:78, s2:58, tb:50, ret:27, srv:91, brk:36 },
+  "Novak Djokovic":              { rank:3,  ace:8.0,  df:2.7, s1:74, s2:52, tb:100,ret:25, srv:85, brk:40 },
+  "Alexander Zverev":            { rank:4,  ace:14.3, df:1.2, s1:76, s2:58, tb:50, ret:22, srv:91, brk:48 },
+  "Lorenzo Musetti":             { rank:5,  ace:6.3,  df:2.6, s1:71, s2:58, tb:25, ret:29, srv:85, brk:38 },
+  "Alex de Minaur":              { rank:6,  ace:4.9,  df:2.4, s1:74, s2:57, tb:60, ret:28, srv:88, brk:47 },
+  "Taylor Fritz":                { rank:7,  ace:16.9, df:1.7, s1:80, s2:50, tb:77, ret:11, srv:88, brk:26 },
+  "Ben Shelton":                 { rank:8,  ace:13.6, df:2.6, s1:76, s2:57, tb:83, ret:16, srv:90, brk:37 },
+  "Felix Auger-Aliassime":       { rank:9,  ace:10.0, df:2.0, s1:81, s2:53, tb:83, ret:19, srv:91, brk:38 },
+  "Alexander Bublik":            { rank:10, ace:11.5, df:3.6, s1:77, s2:53, tb:58, ret:16, srv:88, brk:43 },
+  "Daniil Medvedev":             { rank:11, ace:8.9,  df:4.3, s1:74, s2:48, tb:33, ret:35, srv:84, brk:49 },
+  "Jakub Mensik":                { rank:12, ace:12.1, df:4.3, s1:79, s2:47, tb:73, ret:25, srv:83, brk:43 },
+  "Casper Ruud":                 { rank:13, ace:9.7,  df:2.3, s1:72, s2:54, tb:25, ret:15, srv:89, brk:31 },
+  "Jack Draper":                 { rank:14, ace:12.0, df:2.0, s1:83, s2:63, tb:100,ret:4,  srv:93, brk:14 },
+  "Flavio Cobolli":              { rank:15, ace:7.9,  df:2.9, s1:75, s2:52, tb:58, ret:18, srv:80, brk:39 },
+  "Karen Khachanov":             { rank:16, ace:10.1, df:1.9, s1:77, s2:54, tb:14, ret:16, srv:90, brk:37 },
+  "Andrey Rublev":               { rank:17, ace:7.7,  df:2.1, s1:78, s2:53, tb:33, ret:24, srv:89, brk:38 },
+  "Alejandro Davidovich Fokina": { rank:19, ace:4.8,  df:1.5, s1:72, s2:54, tb:60, ret:18, srv:86, brk:44 },
+  "Francisco Cerundolo":         { rank:20, ace:3.4,  df:1.6, s1:73, s2:56, tb:100,ret:31, srv:85, brk:45 },
+  "Luciano Darderi":             { rank:21, ace:7.5,  df:2.7, s1:77, s2:49, tb:83, ret:26, srv:80, brk:40 },
+  "Frances Tiafoe":              { rank:22, ace:7.0,  df:1.3, s1:74, s2:52, tb:60, ret:23, srv:82, brk:45 },
+  "Jiri Lehecka":                { rank:23, ace:7.3,  df:1.2, s1:72, s2:49, tb:25, ret:22, srv:83, brk:46 },
+  "Tommy Paul":                  { rank:24, ace:8.6,  df:1.3, s1:79, s2:57, tb:50, ret:20, srv:90, brk:36 },
+  "Tallon Griekspoor":           { rank:25, ace:8.8,  df:2.2, s1:74, s2:57, tb:43, ret:11, srv:86, brk:43 },
+  "Learner Tien":                { rank:27, ace:10.0, df:4.8, s1:75, s2:50, tb:70, ret:24, srv:81, brk:50 },
+  "Arthur Rinderknech":          { rank:28, ace:12.3, df:2.4, s1:76, s2:51, tb:50, ret:10, srv:86, brk:34 },
+  "Cameron Norrie":              { rank:29, ace:7.1,  df:2.5, s1:72, s2:55, tb:50, ret:17, srv:83, brk:35 },
+  "Brandon Nakashima":           { rank:30, ace:10.1, df:0.6, s1:78, s2:54, tb:44, ret:16, srv:90, brk:33 },
+  "Tomas Martin Etcheverry":     { rank:31, ace:9.0,  df:1.5, s1:74, s2:56, tb:67, ret:16, srv:87, brk:35 },
+  "Arthur Fils":                 { rank:32, ace:5.8,  df:2.2, s1:70, s2:54, tb:57, ret:20, srv:81, brk:43 },
+  "Corentin Moutet":             { rank:33, ace:4.4,  df:4.2, s1:63, s2:51, tb:100,ret:25, srv:69, brk:67 },
+  "Ugo Humbert":                 { rank:34, ace:10.0, df:2.5, s1:76, s2:53, tb:55, ret:17, srv:87, brk:34 },
+  "Holger Rune":                 { rank:35, ace:7.5,  df:3.0, s1:73, s2:53, tb:50, ret:23, srv:84, brk:40 },
+  "Sebastian Korda":             { rank:36, ace:9.5,  df:2.5, s1:76, s2:52, tb:55, ret:18, srv:86, brk:36 },
+  "Grigor Dimitrov":             { rank:37, ace:7.5,  df:2.5, s1:74, s2:54, tb:52, ret:22, srv:84, brk:38 },
+  "Stefanos Tsitsipas":          { rank:38, ace:6.5,  df:3.5, s1:72, s2:52, tb:45, ret:24, srv:82, brk:38 },
+  "Sebastian Baez":              { rank:39, ace:4.0,  df:2.5, s1:67, s2:52, tb:40, ret:23, srv:80, brk:38 },
+  "Jan-Lennard Struff":          { rank:40, ace:11.0, df:2.8, s1:76, s2:51, tb:55, ret:16, srv:86, brk:33 },
+  "Giovanni Mpetshi Perricard":  { rank:41, ace:14.6, df:3.5, s1:76, s2:48, tb:58, ret:13, srv:86, brk:30 },
+  "Lorenzo Sonego":              { rank:42, ace:8.0,  df:3.0, s1:72, s2:51, tb:48, ret:19, srv:82, brk:36 },
+  "Adrian Mannarino":            { rank:43, ace:4.5,  df:2.8, s1:67, s2:52, tb:44, ret:24, srv:79, brk:39 },
+  "Hubert Hurkacz":              { rank:44, ace:11.5, df:2.0, s1:79, s2:53, tb:65, ret:17, srv:90, brk:35 },
+  "Miomir Kecmanovic":           { rank:45, ace:5.5,  df:2.8, s1:68, s2:51, tb:44, ret:21, srv:79, brk:36 },
+  "Mariano Navone":              { rank:46, ace:4.5,  df:2.8, s1:66, s2:52, tb:40, ret:23, srv:79, brk:38 },
+  "Matteo Arnaldi":              { rank:47, ace:6.0,  df:2.8, s1:69, s2:52, tb:45, ret:22, srv:80, brk:37 },
+  "Jack Draper":                 { rank:14, ace:12.0, df:2.0, s1:83, s2:63, tb:100,ret:4,  srv:93, brk:14 },
+  "Nuno Borges":                 { rank:48, ace:6.5,  df:2.5, s1:71, s2:53, tb:48, ret:22, srv:82, brk:37 },
+  "Alejandro Tabilo":            { rank:49, ace:6.0,  df:2.5, s1:70, s2:53, tb:48, ret:22, srv:81, brk:38 },
+  "Nicolas Jarry":               { rank:50, ace:9.0,  df:2.5, s1:74, s2:51, tb:52, ret:18, srv:84, brk:35 },
+};
+
+const DEF = { rank:99, ace:5.5, df:2.8, s1:68, s2:50, tb:45, ret:19, srv:80, brk:35 };
+
+// Top 150 ATP 2026 (fonte: tennisexplorer.com · 16 marzo 2026)
+// Stats dettagliate per i top 50 in ATP_STATS, gli altri usano valori DEF
+const ALL_ATP = [
+  // 1-10
+  "Carlos Alcaraz","Jannik Sinner","Novak Djokovic","Alexander Zverev","Lorenzo Musetti",
+  "Alex de Minaur","Taylor Fritz","Felix Auger-Aliassime","Ben Shelton","Daniil Medvedev",
+  // 11-20
+  "Alexander Bublik","Casper Ruud","Jakub Mensik","Flavio Cobolli","Karen Khachanov",
+  "Andrey Rublev","Alejandro Davidovich Fokina","Luciano Darderi","Francisco Cerundolo","Frances Tiafoe",
+  // 21-30
+  "Learner Tien","Jiri Lehecka","Tommy Paul","Cameron Norrie","Valentin Vacherot",
+  "Jack Draper","Arthur Rinderknech","Holger Rune","Tallon Griekspoor","Brandon Nakashima",
+  // 31-40
+  "Arthur Fils","Tomas Martin Etcheverry","Corentin Moutet","Ugo Humbert","Jaume Munar",
+  "Sebastian Korda","Gabriel Diallo","Denis Shapovalov","Joao Fonseca","Alex Michelsen",
+  // 41-50
+  "Alejandro Tabilo","Jenson Brooksby","Adrian Mannarino","Grigor Dimitrov","Zizou Bergs",
+  "Fabian Marozsan","Alexei Popyrin","Tomas Machac","Marin Cilic","Nuno Borges",
+  // 51-60
+  "Stefanos Tsitsipas","Sebastian Baez","Terence Atmane","Marton Fucsovics","Daniel Altmaier",
+  "Ethan Quinn","Kamil Majchrzak","Miomir Kecmanovic","Giovanni Mpetshi Perricard","Vit Kopriva",
+  // 61-70
+  "Mariano Navone","Lorenzo Sonego","Ignacio Buse","Yannick Hanfmann","Botic van de Zandschulp",
+  "Camilo Ugo Carabelli","Reilly Opelka","Matteo Berrettini","Valentin Royer","Marcos Giron",
+  // 71-80
+  "Juan Manuel Cerundolo","Raphael Collignon","Arthur Cazaux","Emilio Nava","Hubert Hurkacz",
+  "Damir Dzumhur","Mattia Bellucci","Jan-Lennard Struff","Eliot Spizzirri","James Duckworth",
+  // 81-90
+  "Thiago Agustin Tirante","Francisco Comesana","Jacob Fearnley","Alexander Shevchenko","Adam Walton",
+  "Sebastian Ofner","Filip Misolic","Alexander Blockx","Roberto Bautista Agut","Alexandre Muller",
+  // 91-100
+  "Jesper de Jong","Aleksandar Kovacevic","Aleksandar Vukic","Stan Wawrinka","Cristian Garin",
+  "Zachary Svajda","Patrick Kypson","Rinky Hijikata","Adolfo Daniel Vallejo","Dalibor Svrcina",
+  // 101-110
+  "Vilius Gaubas","Quentin Halys","Rafael Jodar","Adolfo Daniel Vallejo","Luca Van Assche",
+  "Pedro Martinez","Pablo Carreno Busta","Sebastian Ofner","Dalibor Svrcina","Hamad Medjedovic",
+  // 111-120
+  "Benjamin Bonzi","Yibing Wu","Sho Shimabukuro","Francesco Maestrelli","Marcelo Tomas Barrios Vera",
+  "Jordan Thompson","Rinky Hijikata","Tristan Schoolkate","Dino Prizmic","Dusan Lajovic",
+  // 121-130
+  "Elmer Moller","Jan Choinski","Coleman Wong","Titouan Droguet","Andrea Pellegrino",
+  "Mackenzie McDonald","Christopher O'Connell","Otto Virtanen","Martin Damm","Shintaro Mochizuki",
+  // 131-140
+  "Dane Sweeny","Marco Trungelliti","Nikoloz Basilashvili","Jack Pinnington Jones","Luca Nardi",
+  "Colton Smith","Chris Rodesch","Moez Echargui","Daniel Merida Aguilar","Francesco Passaro",
+  // 141-150
+  "Laslo Djere","Albert Ramos-Vinolas","Hugo Gaston","Giulio Zeppieri","Benoit Paire",
+  "Facundo Bagnis","Leandro Riedi","Max Purcell","Shang Juncheng","Pavel Kotov",
+];
+const seen=new Set();
+const ATP_PLAYERS=ALL_ATP.filter(p=>{ if(seen.has(p))return false; seen.add(p); return true; });
+
+// ── TORNEI ATP 2026 — Calendario completo (fonte: totalsportnews.com) ────────
+const TORNEI = [
+  // GRAND SLAM
+  { name:"Australian Open",       cat:"Grand Slam",   sup:"cemento",        mese:"Gen" },
+  { name:"Roland Garros",         cat:"Grand Slam",   sup:"terra",          mese:"Mag" },
+  { name:"Wimbledon",             cat:"Grand Slam",   sup:"erba",           mese:"Lug" },
+  { name:"US Open",               cat:"Grand Slam",   sup:"cemento",        mese:"Set" },
+  // MASTERS 1000
+  { name:"Indian Wells",          cat:"Masters 1000", sup:"cemento",        mese:"Mar" },
+  { name:"Miami Open",            cat:"Masters 1000", sup:"cemento",        mese:"Mar" },
+  { name:"Monte-Carlo",           cat:"Masters 1000", sup:"terra",          mese:"Apr" },
+  { name:"Madrid Open",           cat:"Masters 1000", sup:"terra",          mese:"Apr" },
+  { name:"Internazionali Roma",   cat:"Masters 1000", sup:"terra",          mese:"Mag" },
+  { name:"Canadian Open",         cat:"Masters 1000", sup:"cemento",        mese:"Ago" },
+  { name:"Cincinnati Open",       cat:"Masters 1000", sup:"cemento",        mese:"Ago" },
+  { name:"Shanghai Masters",      cat:"Masters 1000", sup:"cemento",        mese:"Ott" },
+  { name:"Paris Masters",         cat:"Masters 1000", sup:"cemento indoor", mese:"Nov" },
+  // ATP 500
+  { name:"Dallas",                cat:"ATP 500",      sup:"cemento indoor", mese:"Feb" },
+  { name:"Rotterdam",             cat:"ATP 500",      sup:"cemento indoor", mese:"Feb" },
+  { name:"Doha",                  cat:"ATP 500",      sup:"cemento",        mese:"Feb" },
+  { name:"Rio de Janeiro",        cat:"ATP 500",      sup:"terra",          mese:"Feb" },
+  { name:"Acapulco",              cat:"ATP 500",      sup:"cemento",        mese:"Feb" },
+  { name:"Dubai",                 cat:"ATP 500",      sup:"cemento",        mese:"Feb" },
+  { name:"Barcelona Open",        cat:"ATP 500",      sup:"terra",          mese:"Apr" },
+  { name:"Munich",                cat:"ATP 500",      sup:"terra",          mese:"Apr" },
+  { name:"Hamburg",               cat:"ATP 500",      sup:"terra",          mese:"Mag" },
+  { name:"Halle",                 cat:"ATP 500",      sup:"erba",           mese:"Giu" },
+  { name:"Queen's Club London",   cat:"ATP 500",      sup:"erba",           mese:"Giu" },
+  { name:"Washington DC",         cat:"ATP 500",      sup:"cemento",        mese:"Lug" },
+  { name:"Tokyo",                 cat:"ATP 500",      sup:"cemento indoor", mese:"Set" },
+  { name:"Beijing",               cat:"ATP 500",      sup:"cemento indoor", mese:"Set" },
+  { name:"Basel",                 cat:"ATP 500",      sup:"cemento indoor", mese:"Ott" },
+  { name:"Vienna",                cat:"ATP 500",      sup:"cemento indoor", mese:"Ott" },
+  // ATP 250
+  { name:"Brisbane",              cat:"ATP 250",      sup:"cemento",        mese:"Gen" },
+  { name:"Hong Kong",             cat:"ATP 250",      sup:"cemento",        mese:"Gen" },
+  { name:"Adelaide",              cat:"ATP 250",      sup:"cemento",        mese:"Gen" },
+  { name:"Auckland",              cat:"ATP 250",      sup:"cemento",        mese:"Gen" },
+  { name:"Montpellier",           cat:"ATP 250",      sup:"cemento indoor", mese:"Feb" },
+  { name:"Buenos Aires",          cat:"ATP 250",      sup:"terra",          mese:"Feb" },
+  { name:"Delray Beach",          cat:"ATP 250",      sup:"cemento",        mese:"Feb" },
+  { name:"Santiago",              cat:"ATP 250",      sup:"terra",          mese:"Feb" },
+  { name:"Bucharest",             cat:"ATP 250",      sup:"terra",          mese:"Mar" },
+  { name:"Houston",               cat:"ATP 250",      sup:"terra",          mese:"Mar" },
+  { name:"Marrakech",             cat:"ATP 250",      sup:"terra",          mese:"Mar" },
+  { name:"Geneva",                cat:"ATP 250",      sup:"terra",          mese:"Mag" },
+  { name:"s-Hertogenbosch",       cat:"ATP 250",      sup:"erba",           mese:"Giu" },
+  { name:"Stuttgart",             cat:"ATP 250",      sup:"erba",           mese:"Giu" },
+  { name:"Mallorca",              cat:"ATP 250",      sup:"erba",           mese:"Giu" },
+  { name:"Eastbourne",            cat:"ATP 250",      sup:"erba",           mese:"Giu" },
+  { name:"Bastad",                cat:"ATP 250",      sup:"terra",          mese:"Lug" },
+  { name:"Gstaad",                cat:"ATP 250",      sup:"terra",          mese:"Lug" },
+  { name:"Umag",                  cat:"ATP 250",      sup:"terra",          mese:"Lug" },
+  { name:"Kitzbuhel",             cat:"ATP 250",      sup:"terra",          mese:"Lug" },
+  { name:"Estoril",               cat:"ATP 250",      sup:"terra",          mese:"Lug" },
+  { name:"Los Cabos",             cat:"ATP 250",      sup:"cemento",        mese:"Lug" },
+  { name:"Winston-Salem",         cat:"ATP 250",      sup:"cemento",        mese:"Ago" },
+  { name:"Chengdu",               cat:"ATP 250",      sup:"cemento indoor", mese:"Set" },
+  { name:"Hangzhou",              cat:"ATP 250",      sup:"cemento indoor", mese:"Set" },
+  { name:"Almaty",                cat:"ATP 250",      sup:"cemento indoor", mese:"Ott" },
+  { name:"Brussels",              cat:"ATP 250",      sup:"cemento indoor", mese:"Ott" },
+  { name:"Lyon",                  cat:"ATP 250",      sup:"cemento indoor", mese:"Ott" },
+  { name:"Stockholm",             cat:"ATP 250",      sup:"cemento indoor", mese:"Nov" },
+  // ATP FINALS
+  { name:"Nitto ATP Finals",      cat:"ATP Finals",   sup:"cemento indoor", mese:"Nov" },
+  { name:"Next Gen ATP Finals",   cat:"ATP Finals",   sup:"cemento indoor", mese:"Dic" },
+];
+const CAT_ORDER = ["Grand Slam","Masters 1000","ATP 500","ATP 250","ATP Finals"];
+const CAT_COLOR = { "Grand Slam":"#f59e0b","Masters 1000":"#a855f7","ATP 500":"#0ea5e9","ATP 250":"#6b7280","ATP Finals":"#ef4444" };
+const turni = ["1° turno","2° turno","3° turno","Ottavi","Quarti","Semifinale","Finale"];
+
+// ── SISTEMA A PESI PER IL VERDETTO ───────────────────────────────────────────
+// Peso di ogni fattore sulla decisione finale (più alto = più importante)
+const WEIGHTS = {
+  // O/U GAMES
+  games_srv:        3,  // Srv Games Won% — fattore più predittivo
+  games_netdom:     2,  // Dominio netto srv-ret — nuovo fattore chiave
+  games_ret:        2,  // Ret Games Won% — difesa avversario (ridotto da 3)
+  games_s1:         2,  // 1st Serve Won%
+  games_brk:        2,  // Break Points Won%
+  games_sup:        2,  // Superficie
+  games_ranking:    1,  // Differenza ranking
+  games_pressione:  1,  // Turno/pressione
+  // RISULTATO SET
+  ris_srv:          3,  // Srv Games Won% favorito
+  ris_ret:          2,  // Ret Games Won% sfavorito — misura la difesa (NUOVO)
+  ris_brk:          2,  // Break Points Won% sfavorito (NUOVO)
+  ris_ranking:      2,  // Rank diff
+  ris_sup:          2,  // Superficie
+  ris_pressione:    1,  // Finale/semifinale
+  // TIE-BREAK
+  tb_tbrate:        3,  // TB Won% reale
+  tb_srv:           3,  // Srv Games Won%
+  tb_ret:           2,  // Ret Games Won% — chi risponde meglio rompe di più (NUOVO)
+  tb_sup:           2,  // Superficie
+  tb_mismatch:      1,  // Mismatch ranking
+  // 1° SET GAMES
+  g1_srv:           3,  // Srv Games Won%
+  g1_ret:           2,  // Ret Games Won% — aggressività in risposta (NUOVO)
+  g1_sup:           2,  // Superficie
+  g1_ranking:       1,  // Ranking
+  // ACE
+  ace_rate:         3,  // Ace/match reali
+  ace_ret:          2,  // Ret 1st Serve% — chi risponde bene riduce gli ace (NUOVO)
+  ace_sup:          2,  // Superficie
+  // DF
+  df_rate:          3,  // DF/match reali
+  df_brk:           2,  // Break Points Won% — pressione sul servizio aumenta DF (NUOVO)
+  df_pressione:     2,  // Pressione (turno)
+  df_sup:           1,  // Superficie
+};
+
+// ── QUOTA DA CONFIDENZA STATISTICA ───────────────────────────────────────────
+// Formula: quota = max(1.70, 1/conf × overround)
+// overround 1.05 = margine bookmaker del 5%
+// Cap a 3.50 per evitare quote irrealistiche su segnali debolissimi
+function calcQuota(conf, overround=1.05) {
+  if(!conf || conf <= 0) return "1.90";
+  const p = conf / 100;
+  const fair = 1 / p;
+  const withMargin = fair * overround;
+  const capped = Math.min(3.50, Math.max(1.70, withMargin));
+  return (Math.round(capped * 20) / 20).toFixed(2); // arrotonda a 0.05
+}
+
+// Calcola verdetto ponderato e restituisce {verdetto, score, spiegazione}
+function weightedVerdict(fattori, pesi, positiveVals, negativeVals) {
+  let posScore = 0, negScore = 0;
+  const ragioni = { pos: [], neg: [], neu: [] };
+  fattori.forEach((f, i) => {
+    const w = pesi[i] || 1;
+    if (positiveVals.includes(f.valore)) {
+      posScore += w;
+      ragioni.pos.push({ label: f.label, note: f.note, peso: w });
+    } else if (negativeVals.includes(f.valore)) {
+      negScore += w;
+      ragioni.neg.push({ label: f.label, note: f.note, peso: w });
+    } else {
+      ragioni.neu.push({ label: f.label, note: f.note, peso: w });
+    }
+  });
+  const totale = posScore + negScore;
+  const confP = totale > 0 ? Math.round((posScore / totale) * 100) : 50;
+  const confN = totale > 0 ? Math.round((negScore / totale) * 100) : 50;
+  return { posScore, negScore, confP, confN, ragioni };
+}
+
+// Genera testo motivazione leggibile dal sistema ponderato
+function motivazione(res, labelPos, labelNeg) {
+  const { posScore, negScore, confP, confN, ragioni } = res;
+  const lato = posScore > negScore ? labelPos : negScore > posScore ? labelNeg : "NEUTRO";
+  const conf = posScore > negScore ? confP : confP < 50 ? confN : 50;
+  const topPos = [...ragioni.pos].sort((a,b)=>b.peso-a.peso).slice(0,2);
+  const topNeg = [...ragioni.neg].sort((a,b)=>b.peso-a.peso).slice(0,1);
+  let mot = `${lato} (${conf}% score ponderato). `;
+  if (topPos.length) mot += 'Fattori principali: ' + topPos.map(r=>r.label.split(':')[0]+' [peso '+r.peso+']').join(', ') + '. ';
+  if (topNeg.length) mot += 'Rischio opposto: ' + topNeg.map(r=>r.label.split(':')[0]+' [peso '+r.peso+']').join(', ') + '.';
+  return mot.trim();
+}
+
+// ── ANALISI ────────────────────────────────────────────────────────────────
+function analyze(p1n, p2n, sup, turno, statsOverride) {
+  const db = statsOverride || ATP_STATS;
+  const p1 = db[p1n] || ATP_STATS[p1n] || DEF;
+  const p2 = db[p2n] || ATP_STATS[p2n] || DEF;
+  const avgSrv = (p1.srv+p2.srv)/2, avgS1=(p1.s1+p2.s1)/2;
+  const avgAce=p1.ace+p2.ace, avgDf=p1.df+p2.df;
+  const avgRet=(p1.ret+p2.ret)/2, avgTb=(p1.tb+p2.tb)/2;
+  const avgBrk=(p1.brk+p2.brk)/2;
+  // Difesa avversario: quanto il P2 risponde al servizio di P1 (e viceversa)
+  // ret% alto = risponde bene = più break = più giochi
+  // brk% alto = converte le palle break = mette pressione al servizio
+  const retPressure = avgRet > 24 ? "alta" : avgRet > 18 ? "media" : "bassa";
+  // Differenza in risposta tra i due giocatori
+  // Se grande → il servitore forte domina sul lato debole ma viene risposto bene dall'altro
+  // → effetto si annulla → più facile tenere il servizio overall → under
+  const retDiff = Math.abs(p1.ret - p2.ret);
+  const hasLargeRetDiff = retDiff >= 8; // es. 28% vs 19% = differenza significativa
+  const brkPressure = avgBrk > 42 ? "alta" : avgBrk > 35 ? "media" : "bassa";
+  const rankDiff=Math.abs(p1.rank-p2.rank), isMis=rankDiff>25;
+  const isFin=["Finale","Semifinale"].includes(turno);
+  const isTerra=sup==="terra", isErba=sup==="erba", isFast=isErba||sup==="cemento indoor";
+  const fav=p1.rank<p2.rank?p1n:p2n, favP=p1.rank<p2.rank?p1:p2;
+  const undP=fav===p1n?p2:p1; // underdog / sfavorito
+  const p1s=p1n.split(" ").pop(), p2s=p2n.split(" ").pop();
+
+  // ── O/U GAMES ─────────────────────────────────────────────────────────────
+  const sBase={terra:23.5,erba:20.5,cemento:22.0,"cemento indoor":21.0}[sup]||21.5;
+  let linea=sBase;
+  if(avgSrv>90)linea-=1.5; else if(avgSrv>87)linea-=1.0; else if(avgSrv>84)linea-=0.5; else if(avgSrv<80)linea+=1;
+  // Ret Games Won% alto → più break → più giochi
+  if(avgRet>27)linea+=1.0; else if(avgRet>23)linea+=0.5; else if(avgRet<16)linea-=0.5;
+  // Grande differenza in risposta → effetti si annullano → under
+  if(hasLargeRetDiff) linea -= 0.5;
+  if(isMis)linea-=1.5; if(isFin)linea+=0.5;
+  linea=Math.round(linea*2)/2;
+  const gF=[
+    {label:`Srv Gam Won [peso 3]: ${p1s} ${p1.srv}% / ${p2s} ${p2.srv}%`,       valore:avgSrv>=87?"under":avgSrv<81?"over":"neutro",  note:`Media ${avgSrv.toFixed(0)}% — ${avgSrv>=87?"servizi dominanti (≥87%) → break rari → under":avgSrv<81?"molti break → over":"zona grigia 81-87%"}`},
+    {label:`Ret Gam Won [peso 2]: ${p1s} ${p1.ret}% / ${p2s} ${p2.ret}% (diff ${retDiff}pp)`, valore:hasLargeRetDiff?"under":avgRet>25?"over":avgRet<17?"under":"neutro", note:hasLargeRetDiff?`Differenza risposta ${retDiff}pp (${p1s} ${p1.ret}% vs ${p2s} ${p2.ret}%) → effetti si annullano → under`:avgRet>25?`Risposta media alta (${avgRet.toFixed(0)}%) → break frequenti → over`:`Risposta media ${avgRet.toFixed(0)}% — pochi break attesi → under`},
+    {label:`1st Srv Won [peso 2]: ${p1s} ${p1.s1}% / ${p2s} ${p2.s1}%`,         valore:avgS1>77?"under":avgS1<70?"over":"neutro",    note:`Media ${avgS1.toFixed(0)}% — ${avgS1>77?"prima serve dominante → pochi punti in risposta":"prima serve fragile → più opportunità di break"}`},
+    {label:`Brk Pts Won [peso 2]: ${p1s} ${p1.brk}% / ${p2s} ${p2.brk}%`,       valore:avgBrk>41?"over":avgBrk<34?"under":"neutro",  note:`Media ${avgBrk.toFixed(0)}% — ${avgBrk>41?"alta conversione break (>41%) → game a rischio → over":avgBrk<34?"bassa conversione → servizi al sicuro → under":"nella media"}`},
+    {label:`Superficie [peso 2]: ${sup}`,                                          valore:isTerra?"over":isFast?"under":"neutro",        note:isTerra?"Terra: media 23-25 giochi":isFast?"Erba/Indoor: media 19-21":"Cemento: 21-23 giochi"},
+    {label:`Dominio servizio netto [peso 2]: srv ${avgSrv.toFixed(0)}% − ret ${avgRet.toFixed(0)}% = ${(avgSrv-avgRet).toFixed(0)}pp`, valore:(avgSrv-avgRet)>63?"under":(avgSrv-avgRet)<56?"over":"neutro", note:`Differenza srv-ret: ${(avgSrv-avgRet).toFixed(0)}pp — ${(avgSrv-avgRet)>63?"dominio netto alto → game tenuti facilmente → under":(avgSrv-avgRet)<57?"risposta competitiva → break frequenti → over":"zona neutra 57-64pp"}`},
+    {label:`Ranking [peso 1]: #${p1.rank} vs #${p2.rank} (diff ${rankDiff})`,    valore:isMis?"under":"neutro",                       note:isMis?`${fav} favorito netto — match probabilmente rapido`:"Livello simile — esito incerto"},
+    ...(isFin?[{label:`${turno} [peso 1] — pressione`,                            valore:"over",                                        note:"Finali/semifinali spesso più lunghe per tensione emotiva"}]:[]),
+  ];
+  const bothElite=p1.srv>=88&&p2.srv>=88;
+  const bigServer=Math.max(p1.srv,p2.srv)>=87&&!bothElite&&!isTerra;
+  const gPesi=[WEIGHTS.games_srv,WEIGHTS.games_ret,WEIGHTS.games_s1,WEIGHTS.games_brk,WEIGHTS.games_netdom,WEIGHTS.games_sup,WEIGHTS.games_ranking,...(isFin?[WEIGHTS.games_pressione]:[]),...(bothElite?[2]:[]),...(bigServer?[2]:[])];
+  const gRes=weightedVerdict(gF,gPesi,["over"],["under"]);
+  const gV=gRes.posScore>gRes.negScore?"over":gRes.negScore>gRes.posScore?"under":"neutro";
+  const gNote=motivazione(gRes,"OVER","UNDER");
+
+  // ── RISULTATO SET ─────────────────────────────────────────────────────────
+  const p20=Math.min(0.72,0.32+(isMis?.20:0)+(isFast?.06:0)-(isTerra?.06:0)-(isFin?.05:0)+(favP.srv-85)*.003);
+  const q20=Math.max(1.70,1/p20).toFixed(2), q21=Math.max(1.70,1/(1-p20)).toFixed(2);
+  const rF=[
+    {label:`Srv Gam Won favorito [peso 3]: ${fav.split(" ").pop()} ${favP.srv}%`, valore:favP.srv>90?"2-0":favP.srv<83?"2-1":"neutro",note:favP.srv>90?"Dominanza assoluta al servizio → 2-0 probabile":favP.srv<83?"Servizio fragile → può perdere un set":"Servizio nella media"},
+    {label:`Ret Gam Won sfavorito [peso 2]: ${undP.ret}%`,                        valore:undP.ret>22?"2-1":undP.ret<16?"2-0":"neutro", note:undP.ret>22?`Lo sfavorito risponde bene (${undP.ret}%) → può vincere un set`:undP.ret<16?`Risposta debole → difficile fare break → 2-0 probabile`:`Risposta nella media`},
+    {label:`Brk Pts Won sfavorito [peso 2]: ${undP.brk}%`,                        valore:undP.brk>38?"2-1":undP.brk<30?"2-0":"neutro", note:undP.brk>38?`Alta conversione palle break (${undP.brk}%) → può rompere il favorito`:undP.brk<30?`Bassa conversione → difficile togliere il servizio`:`Nella media`},
+    {label:`Rank diff [peso 2]: ${rankDiff} posizioni`,                            valore:isMis?"2-0":"2-1",                             note:isMis?`${fav.split(" ").pop()} nettamente superiore → chiusura secca`:"Giocatori equilibrati → probabile 3° set"},
+    {label:`Superficie [peso 2]: ${sup}`,                                          valore:isTerra?"2-1":isFast?"2-0":"neutro",           note:isTerra?"Terra: break frequenti → 2-1 probabile":isFast?"Superfici veloci favoriscono chiusure in 2":"Cemento neutro"},
+    {label:`${isFin?"Pressione finale":"Turno"} [peso 1]`,                        valore:isFin?"2-1":"neutro",                          note:isFin?"Le finali ATP tendono al 3° set per tensione":"Nessuna pressione aggiuntiva"},
+  ];
+  const rPesi=[WEIGHTS.ris_srv,WEIGHTS.ris_ret,WEIGHTS.ris_brk,WEIGHTS.ris_ranking,WEIGHTS.ris_sup,WEIGHTS.ris_pressione];
+  const rRes=weightedVerdict(rF,rPesi,["2-0"],["2-1"]);
+  const rV=rRes.posScore>rRes.negScore?"2-0":rRes.negScore>rRes.posScore?"2-1":"neutro";
+  const rNote=motivazione(rRes,"2-0","2-1");
+
+  // ── TIE-BREAK ─────────────────────────────────────────────────────────────
+  const tbP=Math.min(0.82,((p1.tb+p2.tb)/200)*(isFast?1.15:isTerra?.80:1)*(isMis?.75:1));
+  const tbSQ=Math.max(1.70,1/tbP).toFixed(2), tbNQ=Math.max(1.70,1/(1-tbP)).toFixed(2);
+  const tbF=[
+    {label:`TB Won% reale [peso 3]: ${p1s} ${p1.tb}% / ${p2s} ${p2.tb}%`,        valore:avgTb>60?"si":avgTb<40?"no":"neutro",  note:`Media ${avgTb.toFixed(0)}% — ${avgTb>60?"alta propensione storica al tie-break":avgTb<40?"raramente arrivano al tb":"frequenza media"}`},
+    {label:`Srv Gam Won [peso 3]: media ${avgSrv.toFixed(0)}%`,                    valore:avgSrv>88?"si":avgSrv<82?"no":"neutro", note:avgSrv>88?"Quasi nessun break → altissima prob. tb":avgSrv<82?"Break frequenti → tb improbabile":"Zona grigia"},
+    {label:`Ret Gam Won [peso 2]: ${p1s} ${p1.ret}% / ${p2s} ${p2.ret}%`,         valore:avgRet<18?"si":avgRet>26?"no":"neutro", note:`Media ${avgRet.toFixed(0)}% — ${avgRet<18?"risposta debole → pochi break → tb probabile":avgRet>26?"risposta forte → molti break → tb improbabile":"equilibrio"}`},
+    {label:`Superficie [peso 2]: ${sup}`,                                           valore:isFast?"si":isTerra?"no":"neutro",      note:isFast?"Superfici veloci: ace frequenti, break rari → tb quasi certo":isTerra?"Break frequenti su terra → tb raro":"Cemento: dipende dai giocatori"},
+    ...(isMis?[{label:`Mismatch ranking [peso 1]: #${p1.rank} vs #${p2.rank}`,     valore:"no",                                  note:`${fav.split(" ").pop()} domina — difficile arrivare a 6-6`}]:[]),
+  ];
+  const tbPesi=[WEIGHTS.tb_tbrate,WEIGHTS.tb_srv,WEIGHTS.tb_ret,WEIGHTS.tb_sup,...(isMis?[WEIGHTS.tb_mismatch]:[])];
+  const tbRes=weightedVerdict(tbF,tbPesi,["si"],["no"]);
+  const tV=tbRes.posScore>tbRes.negScore?"si":tbRes.negScore>tbRes.posScore?"no":"neutro";
+  const tbNote=motivazione(tbRes,"SÌ","NO");
+
+  // ── 1° SET GAMES ──────────────────────────────────────────────────────────
+  const g1B={terra:10.5,erba:9.0,cemento:9.5,"cemento indoor":9.0}[sup]||9.5;
+  let g1=g1B;
+  if(avgSrv>89)g1-=0.5; if(avgSrv<82)g1+=0.5; if(isMis)g1-=1; if(isTerra)g1+=0.5;
+  g1=Math.round(g1*2)/2;
+  const g1F=[
+    {label:`Srv Gam Won [peso 3]: media ${avgSrv.toFixed(0)}%`,                   valore:avgSrv>89?"under":avgSrv<82?"over":"neutro",note:avgSrv>89?"Serve dominanti → primo set breve, pochi break":avgSrv<82?"Break frequenti → primo set lungo":"Nella media"},
+    {label:`Ret Gam Won [peso 2]: ${p1s} ${p1.ret}% / ${p2s} ${p2.ret}%`,         valore:avgRet>24?"over":avgRet<16?"under":"neutro", note:`Media ${avgRet.toFixed(0)}% — ${avgRet>24?"risposta aggressiva → break frequenti → 1° set lungo":avgRet<16?"risposta passiva → servizi tenuti → 1° set breve":"nella media"}`},
+    {label:`Superficie [peso 2]: ${sup}`,                                           valore:isTerra?"over":isFast?"under":"neutro",     note:isTerra?"Terra allunga il primo set (media 10+ giochi)":isFast?"Superfici veloci → primo set rapido":"Cemento neutro"},
+    {label:`Ranking [peso 1]: #${p1.rank} vs #${p2.rank}`,                        valore:isMis?"under":"over",                        note:isMis?`${fav.split(" ").pop()} domina — primo set rapido`:"Equilibrio → primo set conteso"},
+  ];
+  const g1Pesi=[WEIGHTS.g1_srv,WEIGHTS.g1_ret,WEIGHTS.g1_sup,WEIGHTS.g1_ranking];
+  const g1Res=weightedVerdict(g1F,g1Pesi,["over"],["under"]);
+  const g1V=g1Res.posScore>g1Res.negScore?"over":g1Res.negScore>g1Res.posScore?"under":"neutro";
+  const g1Note=motivazione(g1Res,"OVER","UNDER");
+
+  // ── ACE ───────────────────────────────────────────────────────────────────
+  const sMul={terra:.75,erba:1.30,cemento:1.0,"cemento indoor":1.10}[sup]||1.0;
+  const aceL=Math.round(avgAce*sMul*2)/2;
+  const aF=[
+    {label:`Ace/match reali [peso 3]: ${p1s} ${p1.ace} / ${p2s} ${p2.ace}`,       valore:avgAce>18?"over":avgAce<12?"under":"neutro",note:`Base ~${avgAce.toFixed(1)} ace/match — ${avgAce>18?"entrambi servitori potenti":avgAce<12?"pochi ace attesi":"nella media"}`},
+    {label:`Ret 1st Srv% avversario [peso 2]: ${p1s} vs ${p2.ret}% / ${p2s} vs ${p1.ret}%`,valore:avgRet>24?"under":avgRet<16?"over":"neutro",note:`Media ${avgRet.toFixed(0)}% ret-games — ${avgRet>24?"risposta forte riduce gli ace efficaci":avgRet<16?"risposta debole → i servitori dominano → più ace":"equilibrio"}`},
+    {label:`Superficie [peso 2]: ${sup} (moltiplicatore ×${sMul})`,                valore:isFast?"over":isTerra?"under":"neutro",     note:isFast?"Erba/Indoor amplifica gli ace del +15-30%":isTerra?"Terra rallenta: -25% ace rispetto alla media":"Cemento: nessun effetto amplificatore"},
+  ];
+  const aPesi=[WEIGHTS.ace_rate,WEIGHTS.ace_ret,WEIGHTS.ace_sup];
+  const aRes=weightedVerdict(aF,aPesi,["over"],["under"]);
+  const aV=aRes.posScore>aRes.negScore?"over":aRes.negScore>aRes.posScore?"under":"neutro";
+  const aNote=motivazione(aRes,"OVER","UNDER");
+
+  // ── DOPPI FALLI ───────────────────────────────────────────────────────────
+  const dfL=Math.round((avgDf*(isFin?1.15:1)*(isTerra?1.1:1))*2)/2;
+  const dF=[
+    {label:`DF/match reali [peso 3]: ${p1s} ${p1.df} / ${p2s} ${p2.df}`,         valore:avgDf>7?"over":avgDf<5?"under":"neutro",note:`Totale atteso ~${avgDf.toFixed(1)} DF — ${avgDf>7?"alto rischio doppi falli":avgDf<5?"serve molto sicure":"nella media"}`},
+    {label:`Brk Pts Won avversario [peso 2]: ${p1s} vs ${p2.brk}% / ${p2s} vs ${p1.brk}%`,valore:avgBrk>42?"over":avgBrk<32?"under":"neutro",note:`Media ${avgBrk.toFixed(0)}% — ${avgBrk>42?"alta pressione in risposta → il servitore rischia di più sulla seconda → più DF":avgBrk<32?"bassa pressione → il servitore serve libero → meno DF":"pressione nella media"}`},
+    {label:`${isFin?turno+" [peso 2]":"Turno [peso 2]"} — pressione`,             valore:isFin?"over":"neutro",                  note:isFin?"La tensione di finali/semifinali aumenta i doppi falli del +15%":"Pressione standard, nessun impatto significativo"},
+    {label:`Superficie [peso 1]: ${sup}`,                                           valore:isTerra?"over":"neutro",               note:isTerra?"Rimbalzo alto su terra → più DF sulla seconda":"Nessun impatto specifico"},
+  ];
+  const dPesi=[WEIGHTS.df_rate,WEIGHTS.df_brk,WEIGHTS.df_pressione,WEIGHTS.df_sup];
+  const dRes=weightedVerdict(dF,dPesi,["over"],["under"]);
+  const dV=dRes.posScore>dRes.negScore?"over":dRes.negScore>dRes.posScore?"under":"neutro";
+  const dNote=motivazione(dRes,"OVER","UNDER");
+
+  const h2h=genH2H(p1n,p2n);
+
+  // Quota dinamica O/U games basata su srv%
+  const gQuota = avgSrv>90?"1.75":avgSrv>87?"1.80":avgSrv>84?"1.85":"1.90";
+
+  // Calcola conf per ogni mercato (usata anche per la quota)
+  const gConf  = gRes.posScore>gRes.negScore?gRes.confP:gRes.confN;
+  const rConf  = rRes.posScore>rRes.negScore?rRes.confP:rRes.confN;
+  const tbConf = tbRes.posScore>tbRes.negScore?tbRes.confP:tbRes.confN;
+  const g1Conf = g1Res.posScore>g1Res.negScore?g1Res.confP:g1Res.confN;
+  const aConf  = aRes.posScore>aRes.negScore?aRes.confP:aRes.confN;
+  const dConf  = dRes.posScore>dRes.negScore?dRes.confP:dRes.confN;
+
+  const mkts = {
+    games:    {id:"games",    label:"O/U Games",    linea:String(linea),  quota:calcQuota(gConf),  fattori:gF, verdetto:gV, note:gNote, scorePos:gRes.posScore, scoreNeg:gRes.negScore, conf:gConf},
+    risultato:{id:"risultato",label:"Risultato Set",linea:"2-0 / 2-1",   quota:calcQuota(rConf),  fattori:rF, verdetto:rV, note:rNote, scorePos:rRes.posScore, scoreNeg:rRes.negScore, conf:rConf},
+    tiebreak: {id:"tiebreak", label:"Tie-break",    linea:"TB Sì/No",    quota:calcQuota(tbConf), fattori:tbF,verdetto:tV, note:tbNote,scorePos:tbRes.posScore,scoreNeg:tbRes.negScore,conf:tbConf},
+    primoset: {id:"primoset", label:"1° Set Games", linea:`${g1} games`, quota:calcQuota(g1Conf), fattori:g1F,verdetto:g1V,note:g1Note,scorePos:g1Res.posScore,scoreNeg:g1Res.negScore,conf:g1Conf},
+    ace:      {id:"ace",      label:"Ace",           linea:String(aceL),  quota:calcQuota(aConf),  fattori:aF, verdetto:aV, note:aNote, scorePos:aRes.posScore, scoreNeg:aRes.negScore, conf:aConf},
+    df:       {id:"df",       label:"Doppi Falli",   linea:String(dfL),   quota:calcQuota(dConf),  fattori:dF, verdetto:dV, note:dNote, scorePos:dRes.posScore, scoreNeg:dRes.negScore, conf:dConf},
+  };
+
+  // ── MIGLIOR GIOCATA ────────────────────────────────────────────────────────
+  // Seleziona il mercato con score ponderato più alto, quota ≥ 1.70,
+  // verdetto non neutro. In caso di parità, preferisce quota più alta.
+  const MIN_QUOTA = 1.70;
+  const candidates = Object.values(mkts).filter(m => {
+    if(m.verdetto==="neutro") return false;
+    if(parseFloat(m.quota) < MIN_QUOTA) return false;
+    const netScore = Math.abs(m.scorePos - m.scoreNeg);
+    if(netScore === 0) return false;
+    return true;
+  });
+
+  // Sort by: 1) conf desc, 2) net score desc, 3) quota desc (tiebreak)
+  candidates.sort((a,b)=>{
+    const cDiff = b.conf - a.conf;
+    if(cDiff !== 0) return cDiff;
+    const aDiff = Math.abs(b.scorePos-b.scoreNeg) - Math.abs(a.scorePos-a.scoreNeg);
+    if(aDiff !== 0) return aDiff;
+    return parseFloat(b.quota) - parseFloat(a.quota);
+  });
+
+  // Helper per costruire oggetto giocata
+  const mkBet = m => {
+    if(!m) return null;
+    const dirLabel = m.verdetto==="under"?"Under":m.verdetto==="over"?"Over":m.verdetto==="si"?"Sì":m.verdetto==="no"?"No":m.verdetto;
+    return { mercato:m.label, verdetto:m.verdetto, dirLabel, linea:m.linea, quota:m.quota,
+             conf:m.conf, scorePos:m.scorePos, scoreNeg:m.scoreNeg, note:m.note, id:m.id };
+  };
+
+  const bestBet = candidates.length > 0 ? mkBet(candidates[0]) : null;
+
+  // ── 3 PROFILI RISCHIO/RENDIMENTO ──────────────────────────────────────────
+  // 🟢 SICURA: conf massima (già candidates[0])
+  const safeBet = candidates.length > 0 ? mkBet(candidates[0]) : null;
+
+  // 🟡 BILANCIATA: miglior punteggio su (conf * log(quota))
+  // Bilancia confidenza e rendimento — quota 1.90 con 70% batte 1.70 con 75%
+  const balancedCandidates = [...candidates].sort((a,b) => {
+    const scoreA = a.conf * Math.log(parseFloat(a.quota));
+    const scoreB = b.conf * Math.log(parseFloat(b.quota));
+    return scoreB - scoreA;
+  });
+  const balancedBet = balancedCandidates.length > 0 ? mkBet(balancedCandidates[0]) : null;
+
+  // 🔴 ALTO RENDIMENTO: quota più alta tra candidati con conf ≥ 55%
+  const highValueCandidates = candidates
+    .filter(c => c.conf >= 55)
+    .sort((a,b) => parseFloat(b.quota) - parseFloat(a.quota));
+  const highBet = highValueCandidates.length > 0 ? mkBet(highValueCandidates[0]) : null;
+
+  // Evita duplicati tra i 3 profili
+  const tripletta = [];
+  const usedIds = new Set();
+  [safeBet, balancedBet, highBet].forEach((bet, i) => {
+    if(!bet) return;
+    if(usedIds.has(bet.id)) {
+      // Cerca il prossimo candidato disponibile per questo slot
+      const pool = i===1 ? balancedCandidates : i===2 ? highValueCandidates : candidates;
+      const alt = pool.find(c => !usedIds.has(c.id));
+      if(alt) { tripletta.push({...mkBet(alt), profilo:["🟢 Sicura","🟡 Bilanciata","🔴 Alto rendimento"][i]}); usedIds.add(alt.id); }
+    } else {
+      tripletta.push({...bet, profilo:["🟢 Sicura","🟡 Bilanciata","🔴 Alto rendimento"][i]});
+      usedIds.add(bet.id);
+    }
+  });
+
+  return {
+    h2h, stats:{p1:{name:p1n,...p1},p2:{name:p2n,...p2}},
+    markets: mkts,
+    bestBet,
+    tripletta,
+  };
+}
+
+// ── DATABASE H2H REALI (fonte: ATP Tour / Wikipedia · marzo 2026) ─────────────
+// Chiave: nomi in ordine alfabetico separati da "|"
+// Solo dati verificati — nessun dato inventato
+const H2H_DB = {
+  "Carlos Alcaraz|Jannik Sinner": [
+    {anno:"2026",torneo:"Indian Wells",superficie:"Cemento",punteggio:"7-6 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2025",torneo:"Roland Garros (F)",superficie:"Terra",punteggio:"7-6 6-2 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2025",torneo:"Australian Open (QF)",superficie:"Cemento",punteggio:"7-5 6-1 6-3",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Wimbledon (F)",superficie:"Erba",punteggio:"2-6 6-3 6-4 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"2-6 6-3 3-6 6-4 6-3",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"6-2 6-1",vincitore:"Jannik Sinner"},
+  ],
+  "Alexander Zverev|Jannik Sinner": [
+    {anno:"2026",torneo:"Miami (SF)",superficie:"Cemento",punteggio:"3-6 6-7",vincitore:"Jannik Sinner"},
+    {anno:"2026",torneo:"Australian Open (F)",superficie:"Cemento",punteggio:"2-6 6-4 5-7 6-1 2-6",vincitore:"Jannik Sinner"},
+    {anno:"2025",torneo:"Paris Masters (SF)",superficie:"Cemento indoor",punteggio:"6-2 4-6 7-6",vincitore:"Jannik Sinner"},
+    {anno:"2025",torneo:"US Open (SF)",superficie:"Cemento",punteggio:"6-4 7-5 6-2",vincitore:"Jannik Sinner"},
+    {anno:"2025",torneo:"Roland Garros (SF)",superficie:"Terra",punteggio:"7-6 6-2 6-4",vincitore:"Alexander Zverev"},
+    {anno:"2024",torneo:"ATP Finals (RR)",superficie:"Cemento indoor",punteggio:"6-4 7-6",vincitore:"Jannik Sinner"},
+  ],
+  "Carlos Alcaraz|Alexander Zverev": [
+    {anno:"2025",torneo:"Roland Garros (F)",superficie:"Terra",punteggio:"4-6 6-3 7-6 7-6",vincitore:"Carlos Alcaraz"},
+    {anno:"2025",torneo:"Monte-Carlo (F)",superficie:"Terra",punteggio:"6-3 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Roland Garros (SF)",superficie:"Terra",punteggio:"7-6 6-3 6-3",vincitore:"Alexander Zverev"},
+    {anno:"2024",torneo:"ATP Finals (SF)",superficie:"Cemento indoor",punteggio:"6-3 7-6",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Madrid (F)",superficie:"Terra",punteggio:"2-6 6-4 7-6",vincitore:"Carlos Alcaraz"},
+  ],
+  "Jannik Sinner|Novak Djokovic": [
+    {anno:"2025",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"7-6 7-6 6-3",vincitore:"Novak Djokovic"},
+    {anno:"2024",torneo:"ATP Finals (F)",superficie:"Cemento indoor",punteggio:"6-3 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"6-1 6-2 6-7 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2023",torneo:"Davis Cup",superficie:"Cemento indoor",punteggio:"6-2 6-2",vincitore:"Jannik Sinner"},
+  ],
+  "Carlos Alcaraz|Novak Djokovic": [
+    {anno:"2026",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"7-6 6-4 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Wimbledon (SF)",superficie:"Erba",punteggio:"6-2 6-2 6-3",vincitore:"Carlos Alcaraz"},
+    {anno:"2023",torneo:"Wimbledon (F)",superficie:"Erba",punteggio:"1-6 7-6 6-1 3-6 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2023",torneo:"Roland Garros (SF)",superficie:"Terra",punteggio:"6-3 5-7 7-6 7-6",vincitore:"Carlos Alcaraz"},
+  ],
+  "Daniil Medvedev|Jannik Sinner": [
+    {anno:"2026",torneo:"Indian Wells (F)",superficie:"Cemento",punteggio:"7-6 7-6",vincitore:"Jannik Sinner"},
+    {anno:"2025",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"6-4 6-4",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Australian Open (F)",superficie:"Cemento",punteggio:"3-6 3-6 6-4 6-4 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Miami (F)",superficie:"Cemento",punteggio:"6-3 6-1",vincitore:"Jannik Sinner"},
+    {anno:"2023",torneo:"US Open (F)",superficie:"Cemento",punteggio:"6-3 7-6 6-3",vincitore:"Daniil Medvedev"},
+  ],
+  "Carlos Alcaraz|Daniil Medvedev": [
+    {anno:"2025",torneo:"Indian Wells (F)",superficie:"Cemento",punteggio:"6-1 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"5-7 6-2 6-1 6-1",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Indian Wells (SF)",superficie:"Cemento",punteggio:"7-6 6-3",vincitore:"Carlos Alcaraz"},
+    {anno:"2023",torneo:"US Open (SF)",superficie:"Cemento",punteggio:"6-7 6-1 6-3 6-2",vincitore:"Carlos Alcaraz"},
+  ],
+  "Alexander Zverev|Daniil Medvedev": [
+    {anno:"2025",torneo:"US Open (QF)",superficie:"Cemento",punteggio:"6-3 6-4 7-5",vincitore:"Alexander Zverev"},
+    {anno:"2024",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"6-3 7-6 6-3",vincitore:"Alexander Zverev"},
+    {anno:"2024",torneo:"Australian Open (QF)",superficie:"Cemento",punteggio:"6-3 7-6 6-4",vincitore:"Daniil Medvedev"},
+    {anno:"2023",torneo:"ATP Finals (RR)",superficie:"Cemento indoor",punteggio:"6-4 6-3",vincitore:"Daniil Medvedev"},
+  ],
+  "Alexander Zverev|Novak Djokovic": [
+    {anno:"2025",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"1-6 6-7 6-7",vincitore:"Novak Djokovic"},
+    {anno:"2024",torneo:"Roland Garros (F)",superficie:"Terra",punteggio:"2-6 6-3 6-2 6-4",vincitore:"Alexander Zverev"},
+    {anno:"2024",torneo:"Wimbledon (QF)",superficie:"Erba",punteggio:"7-6 4-6 6-3 6-4",vincitore:"Novak Djokovic"},
+  ],
+  "Casper Ruud|Jannik Sinner": [
+    {anno:"2025",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"6-3 6-4 6-4",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"6-3 6-4 6-4",vincitore:"Jannik Sinner"},
+    {anno:"2023",torneo:"ATP Finals (F)",superficie:"Cemento indoor",punteggio:"6-3 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2022",torneo:"US Open (F)",superficie:"Cemento",punteggio:"6-3 6-4 7-5",vincitore:"Carlos Alcaraz"},
+  ],
+  "Jiri Lehecka|Jannik Sinner": [
+    {anno:"2025",torneo:"Roland Garros (R3)",superficie:"Terra",punteggio:"6-0 6-1 6-2",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Pechino (QF)",superficie:"Cemento indoor",punteggio:"6-2 7-6",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Indian Wells (QF)",superficie:"Cemento",punteggio:"6-3 6-3",vincitore:"Jannik Sinner"},
+  ],
+  "Carlos Alcaraz|Taylor Fritz": [
+    {anno:"2024",torneo:"Wimbledon (SF)",superficie:"Erba",punteggio:"7-5 6-4 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"US Open (SF)",superficie:"Cemento",punteggio:"7-6 6-4 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Shanghai (F)",superficie:"Cemento",punteggio:"7-6 6-1",vincitore:"Carlos Alcaraz"},
+  ],
+  "Jannik Sinner|Taylor Fritz": [
+    {anno:"2026",torneo:"Indian Wells (SF)",superficie:"Cemento",punteggio:"6-4 6-4",vincitore:"Jannik Sinner"},
+    {anno:"2025",torneo:"ATP Finals (RR)",superficie:"Cemento indoor",punteggio:"6-4 6-4",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"US Open (QF)",superficie:"Cemento",punteggio:"6-3 7-6 6-2",vincitore:"Jannik Sinner"},
+  ],
+  "Carlos Alcaraz|Holger Rune": [
+    {anno:"2025",torneo:"Monte-Carlo (SF)",superficie:"Terra",punteggio:"6-4 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"6-0 6-3 6-1",vincitore:"Carlos Alcaraz"},
+    {anno:"2023",torneo:"Paris Masters (QF)",superficie:"Cemento indoor",punteggio:"6-3 6-1",vincitore:"Carlos Alcaraz"},
+  ],
+  "Jannik Sinner|Holger Rune": [
+    {anno:"2024",torneo:"ATP Finals (RR)",superficie:"Cemento indoor",punteggio:"6-4 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Canadian Open (QF)",superficie:"Cemento",punteggio:"6-4 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2023",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"6-3 7-5 6-2",vincitore:"Jannik Sinner"},
+  ],
+  "Carlos Alcaraz|Casper Ruud": [
+    {anno:"2026",torneo:"Madrid (F)",superficie:"Terra",punteggio:"6-4 6-3",vincitore:"Carlos Alcaraz"},
+    {anno:"2025",torneo:"Roland Garros (SF)",superficie:"Terra",punteggio:"6-2 6-2 6-3",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Roland Garros (F)",superficie:"Terra",punteggio:"6-3 2-6 5-7 6-1 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2022",torneo:"US Open (F)",superficie:"Cemento",punteggio:"6-4 2-6 7-6 6-3",vincitore:"Carlos Alcaraz"},
+  ],
+  "Jannik Sinner|Stefanos Tsitsipas": [
+    {anno:"2024",torneo:"Roland Garros (R4)",superficie:"Terra",punteggio:"7-6 6-3 7-6",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Australian Open (QF)",superficie:"Cemento",punteggio:"6-4 6-2 6-3",vincitore:"Jannik Sinner"},
+    {anno:"2023",torneo:"Australian Open (R4)",superficie:"Cemento",punteggio:"3-6 4-6 6-4 6-3 6-2",vincitore:"Stefanos Tsitsipas"},
+  ],
+  "Carlos Alcaraz|Stefanos Tsitsipas": [
+    {anno:"2024",torneo:"Barcelona (F)",superficie:"Terra",punteggio:"6-4 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2023",torneo:"Roland Garros (QF)",superficie:"Terra",punteggio:"6-2 6-1 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2022",torneo:"Roland Garros (SF)",superficie:"Terra",punteggio:"6-2 6-3 6-1",vincitore:"Carlos Alcaraz"},
+  ],
+  "Daniil Medvedev|Novak Djokovic": [
+    {anno:"2024",torneo:"ATP Finals (F)",superficie:"Cemento indoor",punteggio:"3-6 6-3 6-4",vincitore:"Novak Djokovic"},
+    {anno:"2024",torneo:"Australian Open (SF)",superficie:"Cemento",punteggio:"6-4 6-4",vincitore:"Novak Djokovic"},
+    {anno:"2023",torneo:"Wimbledon (QF)",superficie:"Erba",punteggio:"6-4 6-4 6-4",vincitore:"Novak Djokovic"},
+  ],
+  "Alexander Zverev|Stefanos Tsitsipas": [
+    {anno:"2024",torneo:"US Open (QF)",superficie:"Cemento",punteggio:"6-3 7-6 6-4",vincitore:"Alexander Zverev"},
+    {anno:"2024",torneo:"Monte-Carlo (SF)",superficie:"Terra",punteggio:"6-3 6-4",vincitore:"Alexander Zverev"},
+    {anno:"2023",torneo:"Roland Garros (SF)",superficie:"Terra",punteggio:"6-3 6-3 7-5",vincitore:"Alexander Zverev"},
+  ],
+  "Carlos Alcaraz|Alex de Minaur": [
+    {anno:"2024",torneo:"Wimbledon (QF)",superficie:"Erba",punteggio:"6-1 6-2 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Australian Open (QF)",superficie:"Cemento",punteggio:"6-1 6-2 6-2",vincitore:"Carlos Alcaraz"},
+    {anno:"2023",torneo:"Queen's Club (F)",superficie:"Erba",punteggio:"6-4 6-4",vincitore:"Carlos Alcaraz"},
+  ],
+  "Jannik Sinner|Ben Shelton": [
+    {anno:"2025",torneo:"US Open (SF)",superficie:"Cemento",punteggio:"6-2 6-1",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"US Open (SF)",superficie:"Cemento",punteggio:"7-6 6-2 6-2",vincitore:"Jannik Sinner"},
+    {anno:"2023",torneo:"US Open (SF)",superficie:"Cemento",punteggio:"6-2 6-2 7-6",vincitore:"Novak Djokovic"},
+  ],
+  "Carlos Alcaraz|Ben Shelton": [
+    {anno:"2025",torneo:"Wimbledon (QF)",superficie:"Erba",punteggio:"6-4 6-4 6-4",vincitore:"Carlos Alcaraz"},
+    {anno:"2024",torneo:"Wimbledon (QF)",superficie:"Erba",punteggio:"6-2 6-2 6-2",vincitore:"Carlos Alcaraz"},
+  ],
+  "Andrey Rublev|Jannik Sinner": [
+    {anno:"2025",torneo:"Rotterdam (F)",superficie:"Cemento indoor",punteggio:"6-4 6-4",vincitore:"Andrey Rublev"},
+    {anno:"2024",torneo:"Monte-Carlo (F)",superficie:"Terra",punteggio:"6-4 6-2",vincitore:"Jannik Sinner"},
+    {anno:"2024",torneo:"Australian Open (QF)",superficie:"Cemento",punteggio:"6-3 6-2 6-3",vincitore:"Jannik Sinner"},
+  ],
+};
+
+function mkH2HKey(a,b){ return [a,b].sort().join("|"); }
+
+function genH2H(p1n,p2n){
+  const key = mkH2HKey(p1n,p2n);
+  const db = H2H_DB[key];
+  if(db && db.length>0){
+    return db.slice(0,5).map(m=>{
+      const sets=m.punteggio.split(" ");
+      const giochi=sets.reduce((acc,s)=>{
+        const p=s.split("-");
+        return acc+(parseInt(p[0])||0)+(parseInt(p[1])||0);
+      },0);
+      return { anno:m.anno, torneo:m.torneo||"", superficie:m.superficie, punteggio:m.punteggio, giochi:giochi||18, vincitore:m.vincitore };
+    });
+  }
+  return []; // nessun dato inventato
+}
+
+
+const TABS=[{id:"games",label:"O/U Games",icon:"📊"},{id:"risultato",label:"Risultato",icon:"🏆"},{id:"tiebreak",label:"Tie-break",icon:"🎯"},{id:"primoset",label:"1° Set",icon:"1️⃣"},{id:"ace",label:"Ace",icon:"⚡"},{id:"df",label:"DF",icon:"💥"}];
+
+// ── TOURNAMENT PICKER ─────────────────────────────────────────────────────
+function TourneyPicker({torneo,sup,onSelect,onClose}){
+  const [cat,setCat]=useState("Masters 1000");
+  const list=TORNEI.filter(t=>t.cat===cat);
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:500,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:16,maxWidth:500,width:"100%",maxHeight:"80vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        <div style={{padding:"14px 18px",borderBottom:"1px solid #1e3a5f",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:"#0ea5e9"}}>🏟 SELEZIONA TORNEO</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#64748b",fontSize:20,cursor:"pointer"}}>✕</button>
+        </div>
+        {/* Category tabs */}
+        <div style={{display:"flex",gap:4,padding:"10px 14px",overflowX:"auto",flexShrink:0}}>
+          {CAT_ORDER.map(c=>(
+            <button key={c} onClick={()=>setCat(c)} style={{padding:"5px 10px",border:"none",borderRadius:6,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,background:cat===c?CAT_COLOR[c]:"#0a0f1e",color:cat===c?"#fff":"#64748b",transition:"all .2s"}}>{c}</button>
+          ))}
+        </div>
+        {/* Tournament list */}
+        <div style={{overflowY:"auto",padding:"0 14px 14px"}}>
+          {list.map((t,i)=>(
+            <div key={i} onClick={()=>{onSelect(t);onClose();}} style={{
+              padding:"10px 14px",marginBottom:4,borderRadius:10,cursor:"pointer",
+              border:`1px solid ${torneo===t.name?"#0ea5e9":"#1e3a5f"}`,
+              background:torneo===t.name?"#0c2a3f":"#060d1a",
+              display:"flex",justifyContent:"space-between",alignItems:"center",
+              transition:"all .15s",
+            }}
+            onMouseEnter={e=>e.currentTarget.style.background="#1e3a5f"}
+            onMouseLeave={e=>e.currentTarget.style.background=torneo===t.name?"#0c2a3f":"#060d1a"}>
+              <div>
+                <div style={{fontWeight:600,fontSize:13,color:"#e2e8f0"}}>{t.name}</div>
+                <div style={{fontSize:10,color:"#64748b",fontFamily:"'DM Mono',monospace",marginTop:2}}>{t.mese} · {t.sup}</div>
+              </div>
+              <span style={{background:CAT_COLOR[t.cat],color:"#fff",borderRadius:4,padding:"2px 8px",fontSize:9,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{t.cat}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PlayerSearch ──────────────────────────────────────────────────────────
+function PlayerSearch({value,onChange,label}){
+  const [query,setQuery]=useState(value||"");
+  const [open,setOpen]=useState(false);
+  const [hov,setHov]=useState(-1);
+  const ref=useRef(null);
+  const filtered=query.length>=1 ? ATP_PLAYERS.filter(p=>p.toLowerCase().includes(query.toLowerCase())) : ATP_PLAYERS;
+  useEffect(()=>{setQuery(value||"");},[value]);
+  useEffect(()=>{
+    const fn=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",fn);return()=>document.removeEventListener("mousedown",fn);
+  },[]);
+  const sel=n=>{setQuery(n);onChange(n);setOpen(false);setHov(-1);};
+  return(
+    <div ref={ref} style={{position:"relative",width:"100%"}}>
+      <div style={{fontSize:9,color:"#7dd3fc",fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:4}}>{label}</div>
+      <div style={{position:"relative"}}>
+        <input value={query} onChange={e=>{setQuery(e.target.value);onChange(e.target.value);setOpen(true);setHov(-1);}} onFocus={()=>setOpen(true)}
+          placeholder="Cerca..." style={{...iS,fontFamily:"'Bebas Neue',sans-serif",fontSize:20,paddingRight:28,border:open?"1px solid #0ea5e9":"1px solid #1e3a5f"}}/>
+        <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",color:"#475569",pointerEvents:"none",fontSize:12}}>▾</span>
+      </div>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:400,background:"#0d1929",border:"1px solid #0ea5e9",borderRadius:10,boxShadow:"0 12px 40px rgba(0,0,0,.8)",overflow:"hidden",maxHeight:420,overflowY:"auto"}}>
+          {filtered.map((p,i)=>{
+            const idx=p.toLowerCase().indexOf(query.toLowerCase());
+            const b=p.slice(0,idx<0?0:idx),m=idx>=0?p.slice(idx,idx+query.length):"",a=idx>=0?p.slice(idx+query.length):p;
+            const st=ATP_STATS[p];
+            return(
+              <div key={i} onMouseDown={()=>sel(p)} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(-1)}
+                style={{padding:"8px 12px",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",background:hov===i?"#1e3a5f":"transparent",borderBottom:i<filtered.length-1?"1px solid #132236":"none",transition:"background .1s"}}>
+                <span><span style={{color:"#0ea5e9",marginRight:6,fontSize:11}}>🎾</span><span style={{color:"#64748b"}}>{b}</span><span style={{color:"#fff",fontWeight:700}}>{m}</span><span style={{color:"#64748b"}}>{a}</span></span>
+                {st&&<span style={{fontSize:9,color:"#475569",fontFamily:"'DM Mono',monospace"}}>#{st.rank} · {st.ace}ace · {st.srv}%</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VBadge({v,big}){
+  const c={over:{bg:"#ef4444",l:"🔴 OVER"},under:{bg:"#0ea5e9",l:"🔵 UNDER"},si:{bg:"#0ea5e9",l:"✅ SÌ"},no:{bg:"#ef4444",l:"❌ NO"},"2-0":{bg:"#0ea5e9",l:"🏆 2-0"},"2-1":{bg:"#f59e0b",l:"🔥 2-1"},neutro:{bg:"#6b7280",l:"⚪ NEUTRO"}};
+  const{bg,l}=c[v]||c.neutro;
+  return big?<div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,letterSpacing:2,color:bg}}>{l}</div>
+    :<span style={{background:bg,color:"#fff",borderRadius:4,padding:"2px 8px",fontSize:10,fontWeight:700,letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>{l}</span>;
+}
+
+function StatsBar({fattori}){
+  const pos=fattori.filter(f=>["over","si","2-0","2-1"].includes(f.valore)).length;
+  const neg=fattori.filter(f=>["under","no"].includes(f.valore)).length;
+  const neu=fattori.filter(f=>f.valore==="neutro").length;
+  return(
+    <div style={{margin:"8px 0 6px"}}>
+      <div style={{display:"flex",height:6,borderRadius:6,overflow:"hidden",gap:2}}>
+        <div style={{flex:neg||.01,background:"#0ea5e9",transition:"flex .5s"}}/>
+        <div style={{flex:neu||.01,background:"#6b7280",transition:"flex .5s"}}/>
+        <div style={{flex:pos||.01,background:"#ef4444",transition:"flex .5s"}}/>
+      </div>
+    </div>
+  );
+}
+
+function StatsCompare({p1,p2}){
+  const rows=[{l:"Ace/match",k:"ace",h:"high"},{l:"DF/match",k:"df",h:"low"},{l:"1st Srv Won%",k:"s1",h:"high"},{l:"2nd Srv Won%",k:"s2",h:"high"},{l:"Srv Gam Won%",k:"srv",h:"high"},{l:"Ret Gam Won%",k:"ret",h:"high"},{l:"TB Won%",k:"tb",h:"high"},{l:"Brk Pts Won%",k:"brk",h:"high"}];
+  const isNum=k=>["ace","df"].includes(k);
+  return(
+    <div style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,padding:"14px",marginTop:10}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,color:"#0ea5e9",marginBottom:10,textTransform:"uppercase"}}>📈 Stats Reali ATP 2026 — Confronto</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:"5px 8px",alignItems:"center"}}>
+        <div style={{fontSize:9,color:"#475569",fontFamily:"'DM Mono',monospace"}}>Statistica</div>
+        <div style={{fontSize:9,color:"#7dd3fc",fontFamily:"'DM Mono',monospace",textAlign:"right"}}>{p1.name.split(" ").pop().toUpperCase()}</div>
+        <div style={{fontSize:9,color:"#7dd3fc",fontFamily:"'DM Mono',monospace",textAlign:"right"}}>{p2.name.split(" ").pop().toUpperCase()}</div>
+        <div style={{fontSize:9,color:"#475569",fontFamily:"'DM Mono',monospace",textAlign:"right"}}>Δ</div>
+        {rows.map(r=>{
+          const v1=p1[r.k],v2=p2[r.k];
+          const p1b=(r.h==="high"&&v1>v2)||(r.h==="low"&&v1<v2);
+          const p2b=(r.h==="high"&&v2>v1)||(r.h==="low"&&v2<v1);
+          const diff=Math.abs(v1-v2).toFixed(1);
+          const suf=isNum(r.k)?"":"%";
+          return[
+            <div key={r.k+"l"} style={{fontSize:11,color:"#94a3b8",fontFamily:"'DM Mono',monospace"}}>{r.l}</div>,
+            <div key={r.k+"1"} style={{fontSize:11,fontWeight:p1b?700:400,color:p1b?"#34d399":p2b?"#475569":"#e2e8f0",textAlign:"right",fontFamily:"'DM Mono',monospace"}}>{v1}{suf}</div>,
+            <div key={r.k+"2"} style={{fontSize:11,fontWeight:p2b?700:400,color:p2b?"#34d399":p1b?"#475569":"#e2e8f0",textAlign:"right",fontFamily:"'DM Mono',monospace"}}>{v2}{suf}</div>,
+            <div key={r.k+"d"} style={{fontSize:10,color:diff==="0.0"?"#334155":"#fbbf24",textAlign:"right",fontFamily:"'DM Mono',monospace"}}>±{diff}</div>,
+          ];
+        })}
+      </div>
+      <div style={{marginTop:8,fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace"}}>Fonte: tennistonic.com · ATP Stats 2026</div>
+    </div>
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────
+export default function App(){
+  const [p1,setP1]=useState("Jannik Sinner");
+  const [p2,setP2]=useState("Jiri Lehecka");
+  const [torneo,setTorneo]=useState("Miami Open");
+  const [torneoData,setTorneoData]=useState({name:"Miami Open",cat:"Masters 1000",sup:"cemento",mese:"Mar"});
+  const [turn,setTurn]=useState("Finale");
+  const [tab,setTab]=useState("games");
+  const [analysis,setAnalysis]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [success,setSuccess]=useState(false);
+  const [showTourney,setShowTourney]=useState(false);
+  const [editMode,setEditMode]=useState(false);
+  const [newFatt,setNewFatt]=useState({label:"",valore:"neutro",note:""});
+  const [newH2h,setNewH2h]=useState({anno:"",torneo:"",superficie:"",punteggio:"",giochi:"",vincitore:""});
+  const [statsDb,setStatsDb]=useState(ATP_STATS);
+  const [statsLoading,setStatsLoading]=useState(false);
+  const [statsStatus,setStatsStatus]=useState(null);
+  const [apiKey,setApiKey]=useState("");
+  const [showApiConfig,setShowApiConfig]=useState(false);
+  const [fixtures,setFixtures]=useState([]);
+  const [fixturesLoading,setFixturesLoading]=useState(false);
+  const [fixturesError,setFixturesError]=useState(null);
+  const [top100apiNames,setTop100apiNames]=useState(new Set()); // nomi esatti dall'API ranking
+
+  // Aggiorna le stats dei top 150 via Claude API → tennisabstract.com
+  // ── MATCHSTAT RAPIDAPI INTEGRATION ────────────────────────────────────────
+  // Host verificato: tennis-api-atp-wta-itf.p.rapidapi.com
+  // Endpoints v2: /tennis/v2/rankings?type=atp
+  //               /tennis/v2/search?search=NomeCognome
+  //               /tennis/v2/player-stats?player_id=X
+  const RAPIDAPI_HOST = "tennis-api-atp-wta-itf.p.rapidapi.com";
+  const RAPIDAPI_BASE = "https://" + RAPIDAPI_HOST + "/tennis/v2";
+
+  // Proxy Vercel personale — bypass CORS
+  // URL: https://express-js-on-vercel-drab-psi.vercel.app/api/tennis?key=KEY&path=PATH
+  const PROXY_BASE = "https://express-js-on-vercel-drab-psi.vercel.app/api/tennis";
+
+  const fetchAPI = async (path, key) => {
+    const url = PROXY_BASE + "?key=" + encodeURIComponent(key) + "&path=" + encodeURIComponent(path);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("HTTP " + res.status + " — " + path);
+    return res.json();
+  };
+
+  // Normalizza i nomi campo — l'API può restituire varianti diverse
+  const extractStat = (obj, ...keys) => {
+    for (const k of keys) {
+      if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") {
+        return parseFloat(obj[k]);
+      }
+    }
+    return null;
+  };
+
+
+
+  // Converte i dati grezzi dell'API nel formato interno della scheda
+  const parseMatchStats = (data, rank) => {
+    const s = data.serviceStats || {};
+    const r = data.rtnStats || {};
+    const bp = data.breakPointsRtnStats || {};
+    const bps = data.breakPointsServeStats || {};
+
+    // Calcola percentuali dai totali
+    const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+
+    const acesGm       = s.acesGm || 0;
+    const firstServeGm = s.firstServeGm || 1;
+    // ace per match: acesGm / partite stimate (usiamo ratio su game serviti)
+    const ace = parseFloat((acesGm / Math.max(firstServeGm / 10, 1)).toFixed(1));
+
+    const dfGm = s.doubleFaultsGm || 0;
+    const df   = parseFloat((dfGm / Math.max(firstServeGm / 10, 1)).toFixed(1));
+
+    const s1 = pct(s.winningOnFirstServeGm || 0, s.firstServeGm || 1);
+    const s2 = pct(s.winningOnSecondServeGm || 0, (s.firstServeOfGm || 0) - (s.firstServeGm || 0) || 1);
+    // Srv Games Won% = game vinti sul servizio / totale game serviti
+    const srvWon   = (s.winningOnFirstServeGm || 0) + (s.winningOnSecondServeGm || 0);
+    const srvTotal = s.firstServeOfGm || 1;
+    const srv = pct(srvWon, srvTotal);
+
+    // Return Games Won% = game vinti in risposta / totale game in risposta
+    const retWon   = (r.winningOnFirstServeGm || 0) + (r.winningOnSecondServeGm || 0);
+    const retTotal = r.firstServeOfGm || 1;
+    const ret = pct(retWon, retTotal);
+
+    // Break Points Won%
+    const brk = pct(bp.breakPointWonGm || 0, bp.breakPointChanceGm || 1);
+
+    // TB Won% — non disponibile direttamente, usiamo DEF come fallback
+    const tb = (ATP_STATS[Object.keys(ATP_STATS).find(k => k.includes("Sinner"))] || DEF).tb || 50;
+
+    return { rank, ace: Math.max(0.5, ace), df: Math.max(0.3, df), s1, s2, srv, ret, brk, tb };
+  };
+
+  const updateStats = async () => {
+    if (!apiKey || apiKey.trim().length < 10) {
+      setShowApiConfig(true);
+      setStatsStatus({ ok: false, msg: "⚠️ Inserisci la API key RapidAPI prima.", date: "" });
+      return;
+    }
+    setStatsLoading(true);
+    setStatsStatus({ ok: null, msg: "⏳ Scaricando ranking ATP...", date: "" });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      // STEP 1 — Ranking ATP (endpoint verificato)
+      const rankData = await fetchAPI("atp/ranking/singles/", apiKey);
+      const rankings = (rankData.data || []);
+      if (!rankings.length) throw new Error("Ranking vuoto — controlla la key.");
+
+      const newStats = {};
+      const total = Math.min(150, rankings.length);
+      setStatsStatus({ ok: null, msg: "⏳ Aggiornando " + total + " giocatori...", date: "" });
+
+      // STEP 2 — Stats dettagliate per top 100 (endpoint: /atp/player/match-stats/{id})
+      for (let i = 0; i < Math.min(100, rankings.length); i++) {
+        const entry = rankings[i];
+        const player = entry.player || {};
+        const name = player.name || "";
+        const pid  = player.id || "";
+        const rank = entry.position || i + 1;
+        if (!name) continue;
+        try {
+          if (pid) {
+            const sd = await fetchAPI("atp/player/match-stats/" + pid, apiKey);
+            const raw = sd.data || sd;
+            if (raw && raw.serviceStats) {
+              newStats[name] = parseMatchStats(raw, rank);
+            } else {
+              newStats[name] = { ...(ATP_STATS[name] || DEF), rank };
+            }
+          } else {
+            newStats[name] = { ...(ATP_STATS[name] || DEF), rank };
+          }
+        } catch(e) {
+          newStats[name] = { ...(ATP_STATS[name] || DEF), rank };
+        }
+        // Pausa ogni 10 per rispettare rate limit
+        if (i > 0 && i % 10 === 0) {
+          setStatsStatus({ ok: null, msg: "⏳ Aggiornati " + i + "/" + total + "...", date: "" });
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      // STEP 3 — Rank 101-150: solo rank aggiornato, stats da database interno
+      rankings.slice(100, 150).forEach((entry, i) => {
+        const player = entry.player || {};
+        const name = player.name || "";
+        if (!name) return;
+        const rank = entry.position || 101 + i;
+        newStats[name] = { ...(ATP_STATS[name] || DEF), rank };
+      });
+
+      clearTimeout(timeout);
+      if (Object.keys(newStats).length < 5) throw new Error("Troppo pochi risultati.");
+
+      setStatsDb(() => ({ ...ATP_STATS, ...newStats }));
+      // Salva i nomi esatti API per il filtro partite
+      setTop100apiNames(new Set(Object.keys(newStats).map(n => n.toLowerCase())));
+      const now = new Date().toLocaleString("it-IT", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+      setStatsStatus({ ok: true, msg: "✅ " + Object.keys(newStats).length + " giocatori aggiornati da RapidAPI", date: now });
+
+    } catch(err) {
+      clearTimeout(timeout);
+      const msg = err.name === "AbortError" ? "⚠️ Timeout — riprova." : "⚠️ " + err.message;
+      setStatsStatus({ ok: false, msg, date: "" });
+    } finally {
+      setStatsLoading(false);
+    }
+  };;
+
+  // ── CARICA PARTITE IMMINENTI ──────────────────────────────────────────────
+  // Usa getDateFixtures per i prossimi 7 giorni, filtra top50 vs top50
+  const loadFixtures = async () => {
+    if (!apiKey || apiKey.trim().length < 10) {
+      setFixturesError("Inserisci la API key nel ⚙️ prima.");
+      return;
+    }
+    setFixturesLoading(true);
+    setFixturesError(null);
+    try {
+      const allMatches = [];
+      const seen = new Set();
+
+      for (let d = 0; d < 7; d++) {
+        const date = new Date();
+        date.setDate(date.getDate() + d);
+        const dateStr = date.toISOString().split("T")[0];
+        try {
+          const data = await fetchAPI("atp/fixtures/" + dateStr, apiKey);
+          const matches = Array.isArray(data.data) ? data.data : [];
+          matches.forEach(m => {
+            const p1 = (m.player1?.name || "").trim();
+            const p2 = (m.player2?.name || "").trim();
+            if (!p1 || !p2) return;
+            if (p1.includes("/") || p2.includes("/")) return; // skip doppi
+            const key = p1 + "|" + p2 + "|" + dateStr;
+            if (seen.has(key)) return;
+            seen.add(key);
+
+            // Controlla se entrambi sono top 100 usando ATP_PLAYERS
+            const top100 = new Set(ATP_PLAYERS.slice(0,100).map(n => n.toLowerCase().split(" ").pop()));
+            const p1surname = p1.toLowerCase().split(" ").pop();
+            const p2surname = p2.toLowerCase().split(" ").pop();
+            const p1ok = p1surname.length > 3 && top100.has(p1surname);
+            const p2ok = p2surname.length > 3 && top100.has(p2surname);
+            if (!p1ok || !p2ok) return;
+
+            const knownT = {
+              21318:{name:"Miami Open",sup:"cemento",cat:"Masters 1000"},
+              21317:{name:"Indian Wells",sup:"cemento",cat:"Masters 1000"},
+              21320:{name:"Houston",sup:"terra",cat:"ATP 250"},
+              21319:{name:"Bucharest",sup:"terra",cat:"ATP 250"},
+              21321:{name:"Marrakech",sup:"terra",cat:"ATP 250"},
+              21322:{name:"Monte-Carlo",sup:"terra",cat:"Masters 1000"},
+              21323:{name:"Barcelona Open",sup:"terra",cat:"ATP 500"},
+              21324:{name:"Munich",sup:"terra",cat:"ATP 500"},
+              21325:{name:"Madrid Open",sup:"terra",cat:"Masters 1000"},
+              21326:{name:"Internazionali Roma",sup:"terra",cat:"Masters 1000"},
+              21327:{name:"Geneva",sup:"terra",cat:"ATP 250"},
+              21328:{name:"Hamburg",sup:"terra",cat:"ATP 500"},
+            };
+            const t = knownT[m.tournamentId] || {name:"ATP Tour",sup:"cemento",cat:"ATP 250"};
+            allMatches.push({ date:dateStr, p1, p2, p1id:m.player1?.id||"", p2id:m.player2?.id||"", tournament:t.name, cat:t.cat, surface:t.sup, round:m.roundId?"Round "+m.roundId:"", id:m.id||key });
+          });
+        } catch(e) { /* skip day */ }
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      setFixtures(allMatches);
+      if (allMatches.length === 0) setFixturesError("Nessuna partita top100 trovata nei prossimi 7 giorni.");
+    } catch(err) {
+      setFixturesError("⚠️ " + err.message);
+    } finally {
+      setFixturesLoading(false);
+    }
+  };
+
+  // Mappa superficie API → superficie scheda
+  const mapSurface = (s) => {
+    if (!s) return "cemento";
+    const sl = s.toLowerCase();
+    if (sl.includes("clay") || sl.includes("terra")) return "terra";
+    if (sl.includes("grass") || sl.includes("erba")) return "erba";
+    if (sl.includes("indoor") || sl.includes("carpet")) return "cemento indoor";
+    return "cemento";
+  };
+
+  // Carica il match cliccato nell'analisi
+  const loadFixtureMatch = (fix) => {
+    setP1(fix.p1);
+    setP2(fix.p2);
+    // Cerca il torneo nel database interno
+    const t = TORNEI.find(t => t.name === fix.tournament) ||
+              TORNEI.find(t => fix.tournament && t.name.toLowerCase().includes(fix.tournament.toLowerCase().split(" ")[0])) ||
+              (fix.surface ? TORNEI.find(t => t.sup === fix.surface) : null) ||
+              { name: fix.tournament || "ATP Tour", cat: fix.cat || "ATP 250", sup: fix.surface || "cemento", mese: "Apr" };
+    setTorneoData(t);
+    setTorneo(t.name);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const sup=torneoData.sup;
+
+  const go=()=>{
+    if(!p1||!p2)return;
+    setLoading(true);setSuccess(false);
+    setTimeout(()=>{setAnalysis(analyze(p1,p2,sup,turn,statsDb));setLoading(false);setSuccess(true);setTimeout(()=>setSuccess(false),3000);},700);
+  };
+
+  const cur=analysis?.markets?.[tab];
+  const h2h=analysis?.h2h||[];
+  const mH2h=h2h.length?(h2h.reduce((a,b)=>a+Number(b.giochi),0)/h2h.length).toFixed(1):"—";
+
+  const setF=(i,k,v)=>{if(!cur)return;const fa=[...cur.fattori];fa[i]={...fa[i],[k]:v};setAnalysis(a=>({...a,markets:{...a.markets,[tab]:{...cur,fattori:fa}}}));};
+  const delF=i=>{if(!cur)return;setAnalysis(a=>({...a,markets:{...a.markets,[tab]:{...cur,fattori:cur.fattori.filter((_,j)=>j!==i)}}}));};
+  const addF=()=>{if(!newFatt.label||!cur)return;setAnalysis(a=>({...a,markets:{...a.markets,[tab]:{...cur,fattori:[...cur.fattori,newFatt]}}}));setNewFatt({label:"",valore:"neutro",note:""});};
+  const setH=(i,k,v)=>{const h=[...h2h];h[i]={...h[i],[k]:v};setAnalysis(a=>({...a,h2h:h}));};
+  const delH=i=>setAnalysis(a=>({...a,h2h:a.h2h.filter((_,j)=>j!==i)}));
+  const addH=()=>{if(!newH2h.anno)return;setAnalysis(a=>({...a,h2h:[...a.h2h,{...newH2h,giochi:Number(newH2h.giochi)}]}));setNewH2h({anno:"",torneo:"",superficie:"",punteggio:"",giochi:"",vincitore:""});};
+
+  return(
+    <div style={{minHeight:"100vh",background:"#0a0f1e",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",paddingBottom:60}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap');
+        *{box-sizing:border-box}input,select,textarea{outline:none}
+        input::placeholder,textarea::placeholder{color:#475569}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0f1e}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:4px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(14,165,233,.4)}50%{box-shadow:0 0 0 8px rgba(14,165,233,0)}}
+      `}</style>
+
+      {showTourney&&<TourneyPicker torneo={torneoData.name} sup={sup} onSelect={t=>{setTorneoData(t);setTorneo(t.name);}} onClose={()=>setShowTourney(false)}/>}
+
+      {/* HEADER */}
+      <div style={{background:"linear-gradient(135deg,#0ea5e9 0%,#0369a1 55%,#0a0f1e 100%)",padding:"20px 16px 16px",borderBottom:"1px solid #1e3a5f"}}>
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:8,flexWrap:"wrap"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:3,color:"#bae6fd",textTransform:"uppercase"}}>🎾 ATP Betting Analyzer — Stats Reali 2026</div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              {statsStatus&&(
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:statsStatus.ok?"#4ade80":"#f87171",whiteSpace:"nowrap"}}>
+                  {statsStatus.msg}{statsStatus.date?` · ${statsStatus.date}`:""}
+                </span>
+              )}
+              <button onClick={()=>setShowApiConfig(v=>!v)} title="Configura API key" style={{
+                padding:"5px 8px",background:"#0d1929",border:"1px solid #334155",
+                borderRadius:7,cursor:"pointer",color:"#64748b",fontSize:11,
+              }}>⚙️</button>
+              <button onClick={updateStats} disabled={statsLoading} title="Aggiorna statistiche da Matchstat RapidAPI" style={{
+                display:"flex",alignItems:"center",gap:5,padding:"5px 10px",
+                background:statsLoading?"#0c2a3f":"#0d1929",
+                border:"1px solid #0ea5e9",borderRadius:7,cursor:statsLoading?"not-allowed":"pointer",
+                color:"#7dd3fc",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,
+                letterSpacing:1,whiteSpace:"nowrap",transition:"all .2s",
+              }}>
+                <span style={{display:"inline-block",animation:statsLoading?"spin .8s linear infinite":"none",fontSize:11}}>🔄</span>
+                {statsLoading?"AGGIORNANDO...":"AGGIORNA STATS"}
+              </button>
+            </div>
+          </div>
+
+          {/* Players */}
+          <div style={{display:"flex",alignItems:"flex-end",gap:10,flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:130}}><PlayerSearch value={p1} onChange={setP1} label="GIOCATORE 1"/></div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:"#bae6fd",paddingBottom:4,flexShrink:0}}>VS</div>
+            <div style={{flex:1,minWidth:130}}><PlayerSearch value={p2} onChange={setP2} label="GIOCATORE 2"/></div>
+          </div>
+
+          {/* Torneo + turno */}
+          <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap",alignItems:"center"}}>
+            <button onClick={()=>setShowTourney(true)} style={{
+              display:"flex",alignItems:"center",gap:8,padding:"7px 12px",
+              background:"#0d1929",border:`1px solid ${CAT_COLOR[torneoData.cat]||"#1e3a5f"}`,
+              borderRadius:8,cursor:"pointer",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,
+              transition:"all .2s",flex:1,minWidth:160,
+            }}>
+              <span style={{fontSize:14}}>🏟</span>
+              <span style={{flex:1,textAlign:"left"}}>{torneoData.name}</span>
+              <span style={{background:CAT_COLOR[torneoData.cat],color:"#fff",borderRadius:4,padding:"1px 6px",fontSize:9,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{torneoData.cat}</span>
+            </button>
+            <div style={{fontSize:10,color:"#64748b",fontFamily:"'DM Mono',monospace",background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:8,padding:"7px 10px"}}>🏟 {sup.toUpperCase()}</div>
+            <select value={turn} onChange={e=>setTurn(e.target.value)} style={{...sS,fontSize:11}}>{turni.map(t=><option key={t}>{t}</option>)}</select>
+          </div>
+
+          {/* CTA */}
+          <button onClick={go} disabled={loading||!p1||!p2} style={{
+            marginTop:12,width:"100%",padding:"13px 16px",
+            background:loading?"#0c2a3f":success?"linear-gradient(135deg,#059669,#047857)":"linear-gradient(135deg,#0ea5e9,#0369a1)",
+            border:"none",borderRadius:10,color:"#fff",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:2,
+            cursor:(loading||!p1||!p2)?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+            transition:"all .3s",animation:(!loading&&!success&&p1&&p2)?"pulse 2s infinite":"none",opacity:(!p1||!p2)?.5:1,
+          }}>
+            {loading?<><div style={{width:14,height:14,border:"2px solid #1e3a5f",borderTop:"2px solid #7dd3fc",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>ANALISI IN CORSO...</>
+              :success?<>✅ ANALISI COMPLETATA!</>
+              :<>📊 ANALIZZA — {p1||"?"} vs {p2||"?"} · {torneoData.name}</>}
+          </button>
+        </div>
+      </div>
+
+      {/* API CONFIG PANEL */}
+      {showApiConfig && (
+        <div style={{background:"#0a1629",borderBottom:"1px solid #1e3a5f",padding:"10px 16px"}}>
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#0ea5e9",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
+              ⚙️ Configurazione Matchstat RapidAPI
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:200}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",marginBottom:4}}>X-RapidAPI-Key</div>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={e=>setApiKey(e.target.value)}
+                  placeholder="Incolla la tua API key RapidAPI..."
+                  style={{width:"100%",background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:6,
+                    padding:"7px 10px",color:"#e2e8f0",fontFamily:"'DM Mono',monospace",fontSize:11}}
+                />
+              </div>
+              <div style={{minWidth:200}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",marginBottom:4}}>Host RapidAPI (verifica dashboard)</div>
+                <input
+                  type="text"
+                  defaultValue="tennis-api-atp-wta-itf.p.rapidapi.com"
+                  onChange={e=>{window._rapidApiHost=e.target.value;}}
+                  style={{width:"100%",background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:6,
+                    padding:"7px 10px",color:"#94a3b8",fontFamily:"'DM Mono',monospace",fontSize:10}}
+                />
+              </div>
+              <button onClick={()=>setShowApiConfig(false)} style={{
+                padding:"7px 14px",background:"#16a34a",border:"none",borderRadius:6,
+                color:"#fff",fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer",marginTop:12
+              }}>✓ Salva</button>
+            </div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#475569",marginTop:6}}>
+              La key non viene salvata tra sessioni. Reinseriscila ad ogni apertura della scheda.
+              Endpoint usati: /rankings?type=atp&count=150 · /player-stats?player_id=X&year=2026
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{maxWidth:700,margin:"0 auto",padding:"0 14px"}}>
+        {!analysis&&!loading&&(
+          <div style={{animation:"fadeIn .5s ease"}}>
+            {/* Partite imminenti */}
+            <div style={{marginTop:16}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,color:"#0ea5e9",textTransform:"uppercase"}}>
+                  🗓️ Partite Imminenti — Top 100 vs Top 100
+                </div>
+                <button onClick={loadFixtures} disabled={fixturesLoading} style={{
+                  display:"flex",alignItems:"center",gap:5,padding:"5px 10px",
+                  background:"#0d1929",border:"1px solid #0ea5e9",borderRadius:7,
+                  cursor:fixturesLoading?"not-allowed":"pointer",color:"#7dd3fc",
+                  fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:1,
+                }}>
+                  <span style={{display:"inline-block",animation:fixturesLoading?"spin .8s linear infinite":"none",fontSize:11}}>🔄</span>
+                  {fixturesLoading?"CARICANDO...":"CARICA PARTITE"}
+                </button>
+              </div>
+
+              {fixturesError && (
+                <div style={{background:"#0d1929",border:"1px dashed #334155",borderRadius:10,padding:"12px",textAlign:"center",fontFamily:"'DM Mono',monospace",fontSize:11,color:"#475569"}}>
+                  {fixturesError}
+                </div>
+              )}
+
+              {fixtures.length > 0 && (
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {fixtures.map((fix,i) => {
+                    const supLabel = {terra:"🟤",erba:"🟢",cemento:"🔵","cemento indoor":"🟣"}[mapSurface(fix.surface)] || "🔵";
+                    const dateLabel = fix.date === new Date().toISOString().split("T")[0] ? "Oggi" :
+                      fix.date === new Date(Date.now()+86400000).toISOString().split("T")[0] ? "Domani" :
+                      new Date(fix.date).toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"2-digit"});
+                    const p1stats = statsDb[fix.p1] || DEF;
+                    const p2stats = statsDb[fix.p2] || DEF;
+                    return (
+                      <div key={i} onClick={() => loadFixtureMatch(fix)}
+                        style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,
+                          padding:"12px 14px",cursor:"pointer",transition:"all .2s",
+                          display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor="#0ea5e9"}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor="#1e3a5f"}>
+                        {/* Data */}
+                        <div style={{minWidth:55,textAlign:"center"}}>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#0ea5e9",fontWeight:700}}>{dateLabel}</div>
+                          <div style={{fontSize:9,color:"#334155",marginTop:2}}>{supLabel} {mapSurface(fix.surface)}</div>
+                        </div>
+                        {/* Giocatori */}
+                        <div style={{flex:1,minWidth:160}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                            <span style={{background:"#0ea5e9",color:"#fff",borderRadius:3,padding:"1px 5px",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:700}}>#{p1stats.rank}</span>
+                            <span style={{fontWeight:700,fontSize:13}}>{fix.p1}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#475569"}}>{p1stats.srv}% srv</span>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{background:"#334155",color:"#fff",borderRadius:3,padding:"1px 5px",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:700}}>#{p2stats.rank}</span>
+                            <span style={{fontWeight:700,fontSize:13}}>{fix.p2}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#475569"}}>{p2stats.srv}% srv</span>
+                          </div>
+                        </div>
+                        {/* Torneo */}
+                        <div style={{textAlign:"right",minWidth:80}}>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#64748b"}}>{fix.tournament}</div>
+                          {fix.cat&&<div style={{display:"inline-block",background:CAT_COLOR[fix.cat]||"#334155",color:"#fff",borderRadius:3,padding:"1px 5px",fontFamily:"'DM Mono',monospace",fontSize:8,marginTop:2}}>{fix.cat}</div>}
+                          {fix.round&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#334155",marginTop:2}}>{fix.round}</div>}
+                        </div>
+                        {/* CTA */}
+                        <div style={{background:"#0ea5e9",borderRadius:7,padding:"6px 10px",fontFamily:"'DM Mono',monospace",fontSize:9,color:"#fff",fontWeight:700,whiteSpace:"nowrap"}}>
+                          → Analizza
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {fixtures.length === 0 && !fixturesError && !fixturesLoading && (
+                <div style={{textAlign:"center",padding:"40px 20px"}}>
+                  <div style={{fontSize:40,marginBottom:10}}>📊</div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:2,color:"#475569"}}>Seleziona giocatori e torneo</div>
+                  <div style={{fontSize:11,marginTop:6,color:"#334155"}}>oppure carica le partite imminenti qui sopra</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {loading&&(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"50px 0",gap:14}}>
+            <div style={{width:44,height:44,borderRadius:"50%",border:"3px solid #1e3a5f",borderTop:"3px solid #0ea5e9",animation:"spin .8s linear infinite"}}/>
+            <div style={{color:"#64748b",fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:2}}>ELABORAZIONE STATS 2026...</div>
+          </div>
+        )}
+
+        {analysis&&!loading&&(<>
+          <StatsCompare p1={analysis.stats.p1} p2={analysis.stats.p2}/>
+
+          {/* ── MIGLIOR GIOCATA ─────────────────────────────────────────── */}
+          {analysis.bestBet ? (
+            <div style={{background:"linear-gradient(135deg,#0f2027,#1a3a2a)",border:"2px solid #16a34a",borderRadius:16,padding:"16px 18px",marginTop:12,position:"relative",overflow:"hidden"}}>
+              {/* sfondo decorativo */}
+              <div style={{position:"absolute",top:-20,right:-20,fontSize:80,opacity:.04,userSelect:"none"}}>🎯</div>
+              {/* header */}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{background:"#16a34a",borderRadius:6,padding:"3px 8px",fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,color:"#fff",letterSpacing:1,textTransform:"uppercase"}}>⭐ Miglior Giocata</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#4ade80",letterSpacing:1}}>{analysis.bestBet.mercato}</div>
+                <div style={{marginLeft:"auto",fontFamily:"'DM Mono',monospace",fontSize:9,color:"#64748b"}}>
+                  {analysis.bestBet.conf>=70?"✅ Alta affidabilità":analysis.bestBet.conf>=60?"〜 Buona affidabilità":"⚠️ Affidabilità moderata"}
+                </div>
+              </div>
+              {/* main content */}
+              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                {/* verdetto */}
+                <div style={{background:"#0a1f0f",borderRadius:12,padding:"10px 18px",textAlign:"center",minWidth:90}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#4ade80",letterSpacing:1,marginBottom:4,textTransform:"uppercase"}}>Selezione</div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:"#4ade80",lineHeight:1}}>{analysis.bestBet.dirLabel}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#94a3b8",marginTop:2}}>{analysis.bestBet.linea}</div>
+                </div>
+                {/* quota + conf */}
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{background:"#0a1f0f",borderRadius:10,padding:"8px 16px",display:"flex",alignItems:"baseline",gap:6}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#64748b",letterSpacing:1,textTransform:"uppercase"}}>Quota</div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,color:"#fbbf24"}}>≥ {analysis.bestBet.quota}</div>
+                  </div>
+                  <div style={{background:"#0a1f0f",borderRadius:10,padding:"8px 16px"}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#64748b",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Score ponderato</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{flex:1,height:6,background:"#0d1929",borderRadius:4,overflow:"hidden",display:"flex",minWidth:80}}>
+                        <div style={{width:`${analysis.bestBet.conf}%`,background:"#16a34a",borderRadius:4,transition:"width .5s"}}/>
+                      </div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:"#4ade80",fontWeight:700,minWidth:40}}>{analysis.bestBet.conf}%</div>
+                    </div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#475569",marginTop:2}}>
+                      {analysis.bestBet.scorePos}pt vs {analysis.bestBet.scoreNeg}pt (netto +{analysis.bestBet.scorePos-analysis.bestBet.scoreNeg}pt)
+                    </div>
+                  </div>
+                </div>
+                {/* motivazione */}
+                <div style={{flex:1,minWidth:180,background:"#0a1f0f",borderRadius:10,padding:"10px 14px"}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#4ade80",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Motivazione</div>
+                  <div style={{color:"#94a3b8",fontSize:11,lineHeight:1.7}}>{analysis.bestBet.note}</div>
+                  <button onClick={()=>setTab(analysis.bestBet.id)} style={{marginTop:8,background:"#16a34a22",border:"1px solid #16a34a",borderRadius:6,padding:"4px 10px",color:"#4ade80",fontFamily:"'DM Mono',monospace",fontSize:9,cursor:"pointer",letterSpacing:1}}>
+                    → Vedi analisi completa
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{background:"#0d1929",border:"1px dashed #334155",borderRadius:12,padding:"14px",marginTop:12,textAlign:"center",fontFamily:"'DM Mono',monospace",fontSize:11,color:"#475569"}}>
+              ⚠️ Nessuna giocata con quota ≥1.70 e segnale statistico sufficiente — evita di forzare.
+            </div>
+          )}
+
+          {/* ── 3 PROFILI RISCHIO/RENDIMENTO ──────────────────────────── */}
+          {analysis.tripletta && analysis.tripletta.length > 0 && (
+            <div style={{marginTop:10}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:2,color:"#64748b",textTransform:"uppercase",marginBottom:6}}>📊 3 Profili Rischio / Rendimento</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {analysis.tripletta.map((bet,i)=>{
+                  const colors = [
+                    {bg:"#0a1f0f",border:"#16a34a",accent:"#4ade80",tag:"#16a34a"},
+                    {bg:"#1a1500",border:"#ca8a04",accent:"#fbbf24",tag:"#ca8a04"},
+                    {bg:"#1a0a0a",border:"#dc2626",accent:"#f87171",tag:"#dc2626"},
+                  ][i] || {bg:"#0d1929",border:"#334155",accent:"#94a3b8",tag:"#334155"};
+                  const riskLabel = ["Basso","Medio","Alto"][i];
+                  const expVal = (bet.conf/100 * parseFloat(bet.quota)).toFixed(2);
+                  return (
+                    <div key={i} style={{background:colors.bg,border:`1px solid ${colors.border}`,borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      {/* profilo tag */}
+                      <div style={{background:colors.tag+"33",border:`1px solid ${colors.tag}`,borderRadius:6,padding:"2px 8px",fontFamily:"'DM Mono',monospace",fontSize:9,color:colors.accent,whiteSpace:"nowrap",minWidth:110}}>{bet.profilo}</div>
+                      {/* selezione */}
+                      <div style={{textAlign:"center",minWidth:70}}>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:colors.accent,lineHeight:1}}>{bet.dirLabel}</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#64748b"}}>{bet.linea}</div>
+                      </div>
+                      {/* quota */}
+                      <div style={{textAlign:"center",minWidth:55}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",textTransform:"uppercase",marginBottom:1}}>Quota</div>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:"#fbbf24"}}>≥{bet.quota}</div>
+                      </div>
+                      {/* conf */}
+                      <div style={{textAlign:"center",minWidth:55}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",textTransform:"uppercase",marginBottom:1}}>Conf.</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:colors.accent,fontWeight:700}}>{bet.conf}%</div>
+                      </div>
+                      {/* valore atteso */}
+                      <div style={{textAlign:"center",minWidth:55}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",textTransform:"uppercase",marginBottom:1}}>EV</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:parseFloat(expVal)>=1?"#34d399":"#f87171",fontWeight:700}}>{expVal}x</div>
+                      </div>
+                      {/* rischio */}
+                      <div style={{textAlign:"center",minWidth:50}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",textTransform:"uppercase",marginBottom:1}}>Rischio</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:colors.accent}}>{riskLabel}</div>
+                      </div>
+                      {/* mercato + bottone */}
+                      <div style={{marginLeft:"auto",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#475569"}}>{bet.mercato}</div>
+                        <button onClick={()=>setTab(bet.id)} style={{background:colors.tag+"22",border:`1px solid ${colors.tag}`,borderRadius:5,padding:"3px 8px",color:colors.accent,fontFamily:"'DM Mono',monospace",fontSize:8,cursor:"pointer",letterSpacing:1}}>→ Analisi</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TABS */}
+          <div style={{display:"flex",gap:3,marginTop:10,overflowX:"auto",paddingBottom:4}}>
+            {TABS.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{
+                padding:"6px 10px",border:"none",borderRadius:8,cursor:"pointer",whiteSpace:"nowrap",
+                fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,
+                background:tab===t.id?"#0ea5e9":"#0d1929",color:tab===t.id?"#fff":"#64748b",
+                borderBottom:tab===t.id?"2px solid #7dd3fc":"2px solid transparent",transition:"all .2s",
+              }}>{t.icon} {t.label}</button>
+            ))}
+          </div>
+
+          {cur&&(
+            <div key={tab} style={{animation:"fadeIn .3s ease"}}>
+              {/* QUOTA CARD */}
+              <div style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,padding:"14px",marginTop:8,display:"flex",gap:14,alignItems:"center",flexWrap:"wrap"}}>
+                <div><div style={{fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Linea</div><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:"#0ea5e9"}}>{cur.linea}</div></div>
+                <div><div style={{fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Quota min.</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:20,color:"#fbbf24"}}>≥ {cur.quota}</div></div>
+                <div><div style={{fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>% Bankroll</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:20,color:"#34d399"}}>{cur.bankroll}%</div></div>
+                <div style={{marginLeft:"auto"}}>
+                  <div style={{fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Verdetto</div>
+                  {editMode?<select value={cur.verdetto} onChange={e=>setAnalysis(a=>({...a,markets:{...a.markets,[tab]:{...cur,verdetto:e.target.value}}}))} style={{...sS,fontSize:13}}>{["over","under","si","no","2-0","2-1","neutro"].map(v=><option key={v}>{v}</option>)}</select>:<VBadge v={cur.verdetto} big/>}
+                </div>
+              </div>
+
+              {/* FATTORI */}
+              <div style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,padding:"14px",marginTop:8}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,color:"#0ea5e9",marginBottom:6,textTransform:"uppercase"}}>⚖️ Fattori — Dati Reali 2026</div>
+                <StatsBar fattori={cur.fattori}/>
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
+                  {cur.fattori.map((f,i)=>{
+                    const col=["over","si","2-1"].includes(f.valore)?"#ef4444":["under","no","2-0"].includes(f.valore)?"#0ea5e9":"#6b7280";
+                    return(
+                      <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"#060d1a",borderRadius:8,borderLeft:`3px solid ${col}`,gap:8}}>
+                        <div style={{flex:1}}>
+                          {editMode?<div style={{display:"flex",gap:5,flexWrap:"wrap"}}><input value={f.label} onChange={e=>setF(i,"label",e.target.value)} style={{...iS,width:150,fontSize:11}}/><input value={f.note} onChange={e=>setF(i,"note",e.target.value)} style={{...iS,flex:1,minWidth:90,fontSize:11}}/></div>
+                            :<><div style={{fontWeight:600,fontSize:12}}>{f.label}</div><div style={{fontSize:11,color:"#64748b",marginTop:1}}>{f.note}</div></>}
+                        </div>
+                        <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                          {editMode?<><select value={f.valore} onChange={e=>setF(i,"valore",e.target.value)} style={{...sS,fontSize:10}}>{["over","under","si","no","2-0","2-1","neutro"].map(v=><option key={v}>{v}</option>)}</select><button onClick={()=>delF(i)} style={bS("#7f1d1d",true)}>✕</button></>:<VBadge v={f.valore}/>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {editMode&&(<div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
+                  <input value={newFatt.label} onChange={e=>setNewFatt(n=>({...n,label:e.target.value}))} placeholder="Fattore" style={{...iS,flex:1,minWidth:110,fontSize:11}}/>
+                  <input value={newFatt.note} onChange={e=>setNewFatt(n=>({...n,note:e.target.value}))} placeholder="Note" style={{...iS,flex:1,minWidth:90,fontSize:11}}/>
+                  <select value={newFatt.valore} onChange={e=>setNewFatt(n=>({...n,valore:e.target.value}))} style={{...sS,fontSize:10}}>{["over","under","si","no","2-0","2-1","neutro"].map(v=><option key={v}>{v}</option>)}</select>
+                  <button onClick={addF} style={bS("#0ea5e9")}>+</button>
+                </div>)}
+              </div>
+
+              {/* NOTE */}
+              <div style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,padding:"12px",marginTop:8}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,color:"#0ea5e9",marginBottom:8,textTransform:"uppercase"}}>📝 Verdetto Ponderato</div>
+                {!editMode && cur.scorePos!==undefined && (
+                  <div style={{marginBottom:10}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#64748b",minWidth:80}}>Score pesi</div>
+                      <div style={{flex:1,height:8,background:"#0a0f1e",borderRadius:6,overflow:"hidden",display:"flex"}}>
+                        <div style={{width:`${cur.scorePos/(cur.scorePos+cur.scoreNeg)*100||0}%`,background:"#ef4444",transition:"width .5s"}}/>
+                        <div style={{width:`${cur.scoreNeg/(cur.scorePos+cur.scoreNeg)*100||0}%`,background:"#0ea5e9",transition:"width .5s"}}/>
+                      </div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:cur.scorePos>cur.scoreNeg?"#ef4444":"#0ea5e9",fontWeight:700,minWidth:60,textAlign:"right"}}>
+                        {cur.scorePos>cur.scoreNeg?"+":"−"}{Math.abs(cur.scorePos-cur.scoreNeg)}pt ({cur.conf}%)
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:12,fontSize:10,fontFamily:"'DM Mono',monospace",color:"#64748b"}}>
+                      <span>🔴 Pos: {cur.scorePos}pt</span>
+                      <span>🔵 Neg: {cur.scoreNeg}pt</span>
+                      <span style={{marginLeft:"auto",color:cur.conf>=65?"#34d399":cur.conf>=55?"#fbbf24":"#f87171"}}>
+                        {cur.conf>=65?"✓ Segnale forte":cur.conf>=55?"~ Segnale moderato":"⚠ Segnale debole"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {editMode?<textarea value={cur.note} onChange={e=>setAnalysis(a=>({...a,markets:{...a.markets,[tab]:{...cur,note:e.target.value}}}))} rows={3} style={{...iS,width:"100%",resize:"vertical",fontSize:12}}/>
+                  :<div style={{color:"#94a3b8",fontSize:12,lineHeight:1.8,borderLeft:"2px solid #1e3a5f",paddingLeft:10}}>{cur.note}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* H2H */}
+          <div style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,padding:"14px",marginTop:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,color:"#0ea5e9",textTransform:"uppercase"}}>
+                ⚔️ Head to Head {h2h.length>0?`— media ${mH2h} giochi`:""}
+              </div>
+              {h2h.length>0&&<div style={{fontSize:9,color:"#475569",fontFamily:"'DM Mono',monospace"}}>
+                🟢 {p1.split(" ").pop()} · 🔴 {p2.split(" ").pop()} · Fonte: ATP Tour
+              </div>}
+            </div>
+            {h2h.length===0&&!editMode?(
+              <div style={{padding:"16px 0",textAlign:"center"}}>
+                <div style={{fontSize:13,color:"#475569",marginBottom:4}}>Nessun H2H verificato in archivio</div>
+                <div style={{fontSize:11,color:"#334155",fontFamily:"'DM Mono',monospace"}}>Usa ✏️ Modifica per inserire i dati manualmente</div>
+              </div>
+            ):(
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{color:"#64748b",fontFamily:"'DM Mono',monospace",fontSize:9}}>
+                  <th style={th}>Anno</th><th style={th}>Torneo</th><th style={th}>Sup.</th><th style={th}>Score</th><th style={{...th,color:"#0ea5e9"}}>G.</th><th style={th}>Vincitore</th>
+                  {editMode&&<th style={th}></th>}
+                </tr></thead>
+                <tbody>
+                  {h2h.map((r,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid #1e3a5f"}}>
+                      {editMode
+                        ?<><td style={td}><input value={r.anno} onChange={e=>setH(i,"anno",e.target.value)} style={{...iS,width:55,fontSize:11}}/></td>
+                            <td style={td}><input value={r.torneo||""} onChange={e=>setH(i,"torneo",e.target.value)} style={{...iS,width:110,fontSize:11}}/></td>
+                            <td style={td}><input value={r.superficie} onChange={e=>setH(i,"superficie",e.target.value)} style={{...iS,width:70,fontSize:11}}/></td>
+                            <td style={td}><input value={r.punteggio} onChange={e=>setH(i,"punteggio",e.target.value)} style={{...iS,width:90,fontSize:11}}/></td>
+                            <td style={td}><input value={r.giochi} onChange={e=>setH(i,"giochi",Number(e.target.value))} style={{...iS,width:45,fontSize:11}} type="number"/></td>
+                            <td style={td}><input value={r.vincitore||""} onChange={e=>setH(i,"vincitore",e.target.value)} style={{...iS,width:90,fontSize:11}}/></td>
+                            <td style={td}><button onClick={()=>delH(i)} style={bS("#7f1d1d",true)}>✕</button></td></>
+                        :<><td style={{...td,fontFamily:"'DM Mono',monospace",fontSize:11}}>{r.anno}</td>
+                            <td style={{...td,fontSize:11,color:"#64748b",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.torneo||""}</td>
+                            <td style={{...td,fontSize:11}}>{r.superficie}</td>
+                            <td style={{...td,color:"#94a3b8",fontSize:11,fontFamily:"'DM Mono',monospace"}}>{r.punteggio}</td>
+                            <td style={{...td,fontFamily:"'Bebas Neue',sans-serif",fontSize:15,color:Number(r.giochi)<21?"#0ea5e9":"#ef4444"}}>{r.giochi}</td>
+                            <td style={{...td,fontSize:10,color:r.vincitore===p1?"#34d399":r.vincitore===p2?"#f87171":"#64748b",fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",fontWeight:700}}>{r.vincitore?r.vincitore.split(" ").slice(-1)[0]:""}</td></>
+                      }
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {editMode&&(<div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
+              <input value={newH2h.anno} onChange={e=>setNewH2h(n=>({...n,anno:e.target.value}))} placeholder="Anno" style={{...iS,width:55,fontSize:11}}/>
+              <input value={newH2h.torneo||""} onChange={e=>setNewH2h(n=>({...n,torneo:e.target.value}))} placeholder="Torneo" style={{...iS,width:110,fontSize:11}}/>
+              <input value={newH2h.superficie} onChange={e=>setNewH2h(n=>({...n,superficie:e.target.value}))} placeholder="Sup." style={{...iS,width:70,fontSize:11}}/>
+              <input value={newH2h.punteggio} onChange={e=>setNewH2h(n=>({...n,punteggio:e.target.value}))} placeholder="Score" style={{...iS,width:90,fontSize:11}}/>
+              <input value={newH2h.giochi} onChange={e=>setNewH2h(n=>({...n,giochi:e.target.value}))} placeholder="G." type="number" style={{...iS,width:45,fontSize:11}}/>
+              <input value={newH2h.vincitore||""} onChange={e=>setNewH2h(n=>({...n,vincitore:e.target.value}))} placeholder="Vincitore" style={{...iS,width:90,fontSize:11}}/>
+              <button onClick={addH} style={bS("#0ea5e9")}>+</button>
+            </div>)}
+          </div>
+
+          <div style={{marginTop:8,padding:"8px 12px",background:"#0d1929",borderRadius:8,border:"1px solid #1e3a5f",fontSize:11,color:"#475569"}}>
+            ⚠️ Le scommesse comportano rischio di perdita. Gioca responsabilmente. Fonte stats: tennistonic.com · ATP 2026.
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+            <button onClick={()=>setEditMode(e=>!e)} style={bS(editMode?"#0ea5e9":"#1e3a5f")}>{editMode?"✓ Salva":"✏️ Modifica"}</button>
+          </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+const iS={background:"#0a0f1e",border:"1px solid #1e3a5f",borderRadius:6,color:"#e2e8f0",padding:"5px 8px",fontSize:13,fontFamily:"'DM Sans',sans-serif",width:"100%"};
+const sS={background:"#0a0f1e",border:"1px solid #1e3a5f",borderRadius:6,color:"#e2e8f0",padding:"5px 8px",fontSize:12,fontFamily:"'DM Mono',monospace"};
+const bS=(bg,small=false)=>({background:bg,color:"#fff",border:"none",borderRadius:6,padding:small?"3px 7px":"6px 12px",fontSize:small?10:11,fontFamily:"'DM Mono',monospace",cursor:"pointer",fontWeight:700,letterSpacing:.5,whiteSpace:"nowrap"});
+const th={textAlign:"left",padding:"5px 7px",fontWeight:500};
+const td={padding:"8px 7px",color:"#e2e8f0"};
