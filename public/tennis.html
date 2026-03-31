@@ -1352,8 +1352,35 @@ function App(){
         <div style={{background:"#0a1629",borderBottom:"1px solid #1e3a5f",padding:"10px 16px"}}>
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#0ea5e9",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
-              ⚙️ Configurazione Matchstat RapidAPI
+              ⚙️ Configurazione RapidAPI
             </div>
+            {/* Password per rivelare la key */}
+            {!apiKey && (
+              <div style={{marginBottom:10}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",marginBottom:4}}>🔐 Inserisci password per caricare la key automaticamente</div>
+                <div style={{display:"flex",gap:8}}>
+                  <input
+                    type="password"
+                    id="pwd-input"
+                    placeholder="Password..."
+                    style={{flex:1,background:"#0d1929",border:"1px solid #334155",borderRadius:6,
+                      padding:"7px 10px",color:"#e2e8f0",fontFamily:"'DM Mono',monospace",fontSize:11}}
+                  />
+                  <button onClick={()=>{
+                    const pwd = document.getElementById("pwd-input").value;
+                    if (pwd === "Bomporto4ever") {
+                      setApiKey("4059fdc2d1msha15b92030724539p17ad04jsne573985226cb");
+                      document.getElementById("pwd-input").value = "";
+                    } else {
+                      alert("Password errata");
+                    }
+                  }} style={{padding:"7px 14px",background:"#0369a1",border:"none",borderRadius:6,
+                    color:"#fff",fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer"}}>
+                    🔓 Sblocca
+                  </button>
+                </div>
+              </div>
+            )}
             <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
               <div style={{flex:1,minWidth:200}}>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",marginBottom:4}}>X-RapidAPI-Key</div>
@@ -1366,25 +1393,13 @@ function App(){
                     padding:"7px 10px",color:"#e2e8f0",fontFamily:"'DM Mono',monospace",fontSize:11}}
                 />
               </div>
-              <div style={{minWidth:200}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#64748b",marginBottom:4}}>Host RapidAPI (verifica dashboard)</div>
-                <input
-                  type="text"
-                  defaultValue="tennis-api-atp-wta-itf.p.rapidapi.com"
-                  onChange={e=>{window._rapidApiHost=e.target.value;}}
-                  style={{width:"100%",background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:6,
-                    padding:"7px 10px",color:"#94a3b8",fontFamily:"'DM Mono',monospace",fontSize:10}}
-                />
-              </div>
               <button onClick={()=>setShowApiConfig(false)} style={{
                 padding:"7px 14px",background:"#16a34a",border:"none",borderRadius:6,
                 color:"#fff",fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer",marginTop:12
               }}>✓ Salva</button>
             </div>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#475569",marginTop:6}}>
-              La key non viene salvata tra sessioni. Reinseriscila ad ogni apertura della scheda.
-              Endpoint usati: /rankings?type=atp&count=150 · /player-stats?player_id=X&year=2026
-            </div>
+            {apiKey && <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#4ade80",marginTop:6}}>✅ Key caricata — le stats live si attivano automaticamente all'analisi.</div>}
+            {!apiKey && <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#475569",marginTop:6}}>La key non viene salvata tra sessioni. Inserisci la password o incollala manualmente.</div>}
           </div>
         </div>
       )}
