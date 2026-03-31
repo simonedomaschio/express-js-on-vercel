@@ -919,10 +919,23 @@ function App(){
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      // STEP 1 — Ranking ATP (endpoint verificato)
-      const rankData = await fetchAPI("atp/ranking/singles/", apiKey);
-      const rankings = (rankData.data || []);
+      // STEP 1 — Ranking ATP top 150 (con paginazione)
+      let rankings = [];
+      let page = 1;
+      let hasNext = true;
+      while (hasNext && rankings.length < 150 && page <= 15) {
+        const path = page === 1 ? "atp/ranking/singles/" : "atp/ranking/singles/?page=" + page;
+        const rankData = await fetchAPI(path, apiKey);
+        const pageData = rankData.data || [];
+        rankings = rankings.concat(pageData);
+        hasNext = rankData.hasNextPage === true;
+        page++;
+        if (pageData.length === 0) break;
+        setStatsStatus({ ok: null, msg: "⏳ Ranking: " + rankings.length + " giocatori caricati...", date: "" });
+        await new Promise(r => setTimeout(r, 150));
+      }
       if (!rankings.length) throw new Error("Ranking vuoto — controlla la key.");
+      setStatsStatus({ ok: null, msg: "⏳ Ranking completo: " + rankings.length + " giocatori. Scaricando stats top 100...", date: "" });
 
       const newStats = {};
       const total = Math.min(150, rankings.length);
