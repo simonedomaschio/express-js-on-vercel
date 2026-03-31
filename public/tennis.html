@@ -829,8 +829,12 @@ function App(){
   const [statsDb,setStatsDb]=useState(ATP_STATS);
   const [statsLoading,setStatsLoading]=useState(false);
   const [statsStatus,setStatsStatus]=useState(null);
-  const [apiKey,setApiKey]=useState(""); // RapidAPI key Matchstat
+  const [apiKey,setApiKey]=useState("");
   const [showApiConfig,setShowApiConfig]=useState(false);
+  const [fixtures,setFixtures]=useState([]);
+  const [fixturesLoading,setFixturesLoading]=useState(false);
+  const [fixturesError,setFixturesError]=useState(null);
+  const [top100apiNames,setTop100apiNames]=useState(new Set()); // nomi esatti dall'API ranking
 
   // Aggiorna le stats dei top 150 via Claude API → tennisabstract.com
   // ── MATCHSTAT RAPIDAPI INTEGRATION ────────────────────────────────────────
@@ -924,8 +928,8 @@ function App(){
       const total = Math.min(150, rankings.length);
       setStatsStatus({ ok: null, msg: "⏳ Aggiornando " + total + " giocatori...", date: "" });
 
-      // STEP 2 — Stats dettagliate per top 50 (endpoint: /atp/player/match-stats/{id})
-      for (let i = 0; i < Math.min(50, rankings.length); i++) {
+      // STEP 2 — Stats dettagliate per top 100 (endpoint: /atp/player/match-stats/{id})
+      for (let i = 0; i < Math.min(100, rankings.length); i++) {
         const entry = rankings[i];
         const player = entry.player || {};
         const name = player.name || "";
@@ -954,12 +958,12 @@ function App(){
         }
       }
 
-      // STEP 3 — Rank 51-150: solo rank aggiornato, stats da database interno
-      rankings.slice(50, 150).forEach((entry, i) => {
+      // STEP 3 — Rank 101-150: solo rank aggiornato, stats da database interno
+      rankings.slice(100, 150).forEach((entry, i) => {
         const player = entry.player || {};
         const name = player.name || "";
         if (!name) return;
-        const rank = entry.position || 51 + i;
+        const rank = entry.position || 101 + i;
         newStats[name] = { ...(ATP_STATS[name] || DEF), rank };
       });
 
@@ -967,6 +971,8 @@ function App(){
       if (Object.keys(newStats).length < 5) throw new Error("Troppo pochi risultati.");
 
       setStatsDb(() => ({ ...ATP_STATS, ...newStats }));
+      // Salva i nomi esatti API per il filtro partite
+      setTop100apiNames(new Set(Object.keys(newStats).map(n => n.toLowerCase())));
       const now = new Date().toLocaleString("it-IT", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
       setStatsStatus({ ok: true, msg: "✅ " + Object.keys(newStats).length + " giocatori aggiornati da RapidAPI", date: now });
 
@@ -978,6 +984,97 @@ function App(){
       setStatsLoading(false);
     }
   };;
+
+  // ── CARICA PARTITE IMMINENTI ──────────────────────────────────────────────
+  // Usa getDateFixtures per i prossimi 7 giorni, filtra top50 vs top50
+  const loadFixtures = async () => {
+    if (!apiKey || apiKey.trim().length < 10) {
+      setFixturesError("Inserisci la API key nel ⚙️ prima.");
+      return;
+    }
+    setFixturesLoading(true);
+    setFixturesError(null);
+    try {
+      const allMatches = [];
+      const seen = new Set();
+
+      for (let d = 0; d < 7; d++) {
+        const date = new Date();
+        date.setDate(date.getDate() + d);
+        const dateStr = date.toISOString().split("T")[0];
+        try {
+          const data = await fetchAPI("atp/fixtures/" + dateStr, apiKey);
+          const matches = Array.isArray(data.data) ? data.data : [];
+          matches.forEach(m => {
+            const p1 = (m.player1?.name || "").trim();
+            const p2 = (m.player2?.name || "").trim();
+            if (!p1 || !p2) return;
+            if (p1.includes("/") || p2.includes("/")) return; // skip doppi
+            const key = p1 + "|" + p2 + "|" + dateStr;
+            if (seen.has(key)) return;
+            seen.add(key);
+
+            // Controlla se entrambi sono top 100 usando ATP_PLAYERS
+            const top100 = new Set(ATP_PLAYERS.slice(0,100).map(n => n.toLowerCase().split(" ").pop()));
+            const p1surname = p1.toLowerCase().split(" ").pop();
+            const p2surname = p2.toLowerCase().split(" ").pop();
+            const p1ok = p1surname.length > 3 && top100.has(p1surname);
+            const p2ok = p2surname.length > 3 && top100.has(p2surname);
+            if (!p1ok || !p2ok) return;
+
+            const knownT = {
+              21318:{name:"Miami Open",sup:"cemento",cat:"Masters 1000"},
+              21317:{name:"Indian Wells",sup:"cemento",cat:"Masters 1000"},
+              21320:{name:"Houston",sup:"terra",cat:"ATP 250"},
+              21319:{name:"Bucharest",sup:"terra",cat:"ATP 250"},
+              21321:{name:"Marrakech",sup:"terra",cat:"ATP 250"},
+              21322:{name:"Monte-Carlo",sup:"terra",cat:"Masters 1000"},
+              21323:{name:"Barcelona Open",sup:"terra",cat:"ATP 500"},
+              21324:{name:"Munich",sup:"terra",cat:"ATP 500"},
+              21325:{name:"Madrid Open",sup:"terra",cat:"Masters 1000"},
+              21326:{name:"Internazionali Roma",sup:"terra",cat:"Masters 1000"},
+              21327:{name:"Geneva",sup:"terra",cat:"ATP 250"},
+              21328:{name:"Hamburg",sup:"terra",cat:"ATP 500"},
+            };
+            const t = knownT[m.tournamentId] || {name:"ATP Tour",sup:"cemento",cat:"ATP 250"};
+            allMatches.push({ date:dateStr, p1, p2, p1id:m.player1?.id||"", p2id:m.player2?.id||"", tournament:t.name, cat:t.cat, surface:t.sup, round:m.roundId?"Round "+m.roundId:"", id:m.id||key });
+          });
+        } catch(e) { /* skip day */ }
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      setFixtures(allMatches);
+      if (allMatches.length === 0) setFixturesError("Nessuna partita top100 trovata nei prossimi 7 giorni.");
+    } catch(err) {
+      setFixturesError("⚠️ " + err.message);
+    } finally {
+      setFixturesLoading(false);
+    }
+  };
+
+  // Mappa superficie API → superficie scheda
+  const mapSurface = (s) => {
+    if (!s) return "cemento";
+    const sl = s.toLowerCase();
+    if (sl.includes("clay") || sl.includes("terra")) return "terra";
+    if (sl.includes("grass") || sl.includes("erba")) return "erba";
+    if (sl.includes("indoor") || sl.includes("carpet")) return "cemento indoor";
+    return "cemento";
+  };
+
+  // Carica il match cliccato nell'analisi
+  const loadFixtureMatch = (fix) => {
+    setP1(fix.p1);
+    setP2(fix.p2);
+    // Cerca il torneo nel database interno
+    const t = TORNEI.find(t => t.name === fix.tournament) ||
+              TORNEI.find(t => fix.tournament && t.name.toLowerCase().includes(fix.tournament.toLowerCase().split(" ")[0])) ||
+              (fix.surface ? TORNEI.find(t => t.sup === fix.surface) : null) ||
+              { name: fix.tournament || "ATP Tour", cat: fix.cat || "ATP 250", sup: fix.surface || "cemento", mese: "Apr" };
+    setTorneoData(t);
+    setTorneo(t.name);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const sup=torneoData.sup;
 
@@ -1122,10 +1219,88 @@ function App(){
 
       <div style={{maxWidth:700,margin:"0 auto",padding:"0 14px"}}>
         {!analysis&&!loading&&(
-          <div style={{textAlign:"center",padding:"50px 20px",animation:"fadeIn .5s ease"}}>
-            <div style={{fontSize:44,marginBottom:10}}>📊</div>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:"#475569"}}>Seleziona giocatori e torneo</div>
-            <div style={{fontSize:12,marginTop:6,color:"#334155"}}>Stats reali 2026 · 6 mercati · {Object.keys(ATP_STATS).length} giocatori</div>
+          <div style={{animation:"fadeIn .5s ease"}}>
+            {/* Partite imminenti */}
+            <div style={{marginTop:16}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,color:"#0ea5e9",textTransform:"uppercase"}}>
+                  🗓️ Partite Imminenti — Top 100 vs Top 100
+                </div>
+                <button onClick={loadFixtures} disabled={fixturesLoading} style={{
+                  display:"flex",alignItems:"center",gap:5,padding:"5px 10px",
+                  background:"#0d1929",border:"1px solid #0ea5e9",borderRadius:7,
+                  cursor:fixturesLoading?"not-allowed":"pointer",color:"#7dd3fc",
+                  fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:1,
+                }}>
+                  <span style={{display:"inline-block",animation:fixturesLoading?"spin .8s linear infinite":"none",fontSize:11}}>🔄</span>
+                  {fixturesLoading?"CARICANDO...":"CARICA PARTITE"}
+                </button>
+              </div>
+
+              {fixturesError && (
+                <div style={{background:"#0d1929",border:"1px dashed #334155",borderRadius:10,padding:"12px",textAlign:"center",fontFamily:"'DM Mono',monospace",fontSize:11,color:"#475569"}}>
+                  {fixturesError}
+                </div>
+              )}
+
+              {fixtures.length > 0 && (
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {fixtures.map((fix,i) => {
+                    const supLabel = {terra:"🟤",erba:"🟢",cemento:"🔵","cemento indoor":"🟣"}[mapSurface(fix.surface)] || "🔵";
+                    const dateLabel = fix.date === new Date().toISOString().split("T")[0] ? "Oggi" :
+                      fix.date === new Date(Date.now()+86400000).toISOString().split("T")[0] ? "Domani" :
+                      new Date(fix.date).toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"2-digit"});
+                    const p1stats = statsDb[fix.p1] || DEF;
+                    const p2stats = statsDb[fix.p2] || DEF;
+                    return (
+                      <div key={i} onClick={() => loadFixtureMatch(fix)}
+                        style={{background:"#0d1929",border:"1px solid #1e3a5f",borderRadius:12,
+                          padding:"12px 14px",cursor:"pointer",transition:"all .2s",
+                          display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor="#0ea5e9"}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor="#1e3a5f"}>
+                        {/* Data */}
+                        <div style={{minWidth:55,textAlign:"center"}}>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#0ea5e9",fontWeight:700}}>{dateLabel}</div>
+                          <div style={{fontSize:9,color:"#334155",marginTop:2}}>{supLabel} {mapSurface(fix.surface)}</div>
+                        </div>
+                        {/* Giocatori */}
+                        <div style={{flex:1,minWidth:160}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                            <span style={{background:"#0ea5e9",color:"#fff",borderRadius:3,padding:"1px 5px",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:700}}>#{p1stats.rank}</span>
+                            <span style={{fontWeight:700,fontSize:13}}>{fix.p1}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#475569"}}>{p1stats.srv}% srv</span>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{background:"#334155",color:"#fff",borderRadius:3,padding:"1px 5px",fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:700}}>#{p2stats.rank}</span>
+                            <span style={{fontWeight:700,fontSize:13}}>{fix.p2}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#475569"}}>{p2stats.srv}% srv</span>
+                          </div>
+                        </div>
+                        {/* Torneo */}
+                        <div style={{textAlign:"right",minWidth:80}}>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:"#64748b"}}>{fix.tournament}</div>
+                          {fix.cat&&<div style={{display:"inline-block",background:CAT_COLOR[fix.cat]||"#334155",color:"#fff",borderRadius:3,padding:"1px 5px",fontFamily:"'DM Mono',monospace",fontSize:8,marginTop:2}}>{fix.cat}</div>}
+                          {fix.round&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"#334155",marginTop:2}}>{fix.round}</div>}
+                        </div>
+                        {/* CTA */}
+                        <div style={{background:"#0ea5e9",borderRadius:7,padding:"6px 10px",fontFamily:"'DM Mono',monospace",fontSize:9,color:"#fff",fontWeight:700,whiteSpace:"nowrap"}}>
+                          → Analizza
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {fixtures.length === 0 && !fixturesError && !fixturesLoading && (
+                <div style={{textAlign:"center",padding:"40px 20px"}}>
+                  <div style={{fontSize:40,marginBottom:10}}>📊</div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:2,color:"#475569"}}>Seleziona giocatori e torneo</div>
+                  <div style={{fontSize:11,marginTop:6,color:"#334155"}}>oppure carica le partite imminenti qui sopra</div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
