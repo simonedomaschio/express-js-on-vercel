@@ -309,7 +309,13 @@ function analyze(p1n, p2n, sup, turno, statsOverride) {
   // Se grande → il servitore forte domina sul lato debole ma viene risposto bene dall'altro
   // → effetto si annulla → più facile tenere il servizio overall → under
   const retDiff = Math.abs(p1.ret - p2.ret);
-  const hasLargeRetDiff = retDiff >= 8; // es. 28% vs 19% = differenza significativa
+  const hasLargeRetDiff = retDiff >= 8;   // differenza significativa
+  const hasExtremeRetDiff = retDiff >= 20; // es. 19% vs 66% — asimmetria estrema
+  const minRet = Math.min(p1.ret, p2.ret);
+  const maxRet = Math.max(p1.ret, p2.ret);
+  // Chi ha il ret alto è il dominatore in risposta
+  const retDominator = p1.ret > p2.ret ? p1n.split(" ").pop() : p2n.split(" ").pop();
+  const retWeak = p1.ret < p2.ret ? p1n.split(" ").pop() : p2n.split(" ").pop();
   const brkPressure = avgBrk > 42 ? "alta" : avgBrk > 35 ? "media" : "bassa";
   const rankDiff=Math.abs(p1.rank-p2.rank), isMis=rankDiff>25;
   const isFin=["Finale","Semifinale"].includes(turno);
@@ -322,15 +328,40 @@ function analyze(p1n, p2n, sup, turno, statsOverride) {
   const sBase={terra:23.5,erba:20.5,cemento:22.0,"cemento indoor":21.0}[sup]||21.5;
   let linea=sBase;
   if(avgSrv>90)linea-=1.5; else if(avgSrv>87)linea-=1.0; else if(avgSrv>84)linea-=0.5; else if(avgSrv<80)linea+=1;
-  // Ret Games Won% alto → più break → più giochi
-  if(avgRet>27)linea+=1.0; else if(avgRet>23)linea+=0.5; else if(avgRet<16)linea-=0.5;
-  // Grande differenza in risposta → effetti si annullano → under
-  if(hasLargeRetDiff) linea -= 0.5;
+  // Ret Games Won% — logica asimmetrica
+  if (hasExtremeRetDiff) {
+    // Asimmetria estrema: break solo da un lato → set più corti → under
+    linea -= 1.5;
+  } else if (maxRet > 40) {
+    // Uno domina in risposta ma l'altro no → asimmetria → under
+    linea -= 1.0;
+  } else if (avgRet > 27) {
+    linea += 1.0; // entrambi rispondono bene → molti break → over
+  } else if (avgRet > 23) {
+    linea += 0.5;
+  } else if (avgRet < 16) {
+    linea -= 0.5;
+  }
+  if (hasLargeRetDiff && !hasExtremeRetDiff) linea -= 0.5;
   if(isMis)linea-=1.5; if(isFin)linea+=0.5;
   linea=Math.round(linea*2)/2;
   const gF=[
     {label:`Srv Gam Won [peso 3]: ${p1s} ${p1.srv}% / ${p2s} ${p2.srv}%`,       valore:avgSrv>=87?"under":avgSrv<81?"over":"neutro",  note:`Media ${avgSrv.toFixed(0)}% — ${avgSrv>=87?"servizi dominanti (≥87%) → break rari → under":avgSrv<81?"molti break → over":"zona grigia 81-87%"}`},
-    {label:`Ret Gam Won [peso 2]: ${p1s} ${p1.ret}% / ${p2s} ${p2.ret}% (diff ${retDiff}pp)`, valore:hasLargeRetDiff?"under":avgRet>25?"over":avgRet<17?"under":"neutro", note:hasLargeRetDiff?`Differenza risposta ${retDiff}pp (${p1s} ${p1.ret}% vs ${p2s} ${p2.ret}%) → effetti si annullano → under`:avgRet>25?`Risposta media alta (${avgRet.toFixed(0)}%) → break frequenti → over`:`Risposta media ${avgRet.toFixed(0)}% — pochi break attesi → under`},
+    {label:`Ret Gam Won [peso 2]: ${p1s} ${p1.ret}% / ${p2s} ${p2.ret}% (diff ${retDiff}pp)`,
+      valore: hasExtremeRetDiff ? "under"   // asimmetria estrema → dominio unilaterale → under
+            : maxRet > 40 ? "under"         // uno dei due risponde troppo bene → break solo da un lato
+            : avgRet > 27 ? "over"          // entrambi rispondono bene → molti break → over
+            : avgRet < 17 ? "under"         // entrambi rispondono male → pochi break → under
+            : hasLargeRetDiff ? "under"     // differenza media → effetti si annullano
+            : "neutro",
+      note: hasExtremeRetDiff
+        ? `Asimmetria estrema: ${retDominator} risponde ${maxRet}% vs ${retWeak} ${minRet}% — break solo in una direzione → set corti → under`
+        : maxRet > 40
+        ? `${retDominator} domina in risposta (${maxRet}%) ma ${retWeak} non breaka (${minRet}%) → partita asimmetrica → under`
+        : avgRet > 27
+        ? `Risposta media alta (${avgRet.toFixed(0)}%) → break frequenti da entrambi → over`
+        : `Risposta media ${avgRet.toFixed(0)}% — ${hasLargeRetDiff ? "differenza "+retDiff+"pp annulla gli effetti → under" : "pochi break attesi → under"}`
+    },
     {label:`1st Srv Won [peso 2]: ${p1s} ${p1.s1}% / ${p2s} ${p2.s1}%`,         valore:avgS1>77?"under":avgS1<70?"over":"neutro",    note:`Media ${avgS1.toFixed(0)}% — ${avgS1>77?"prima serve dominante → pochi punti in risposta":"prima serve fragile → più opportunità di break"}`},
     {label:`Brk Pts Won [peso 2]: ${p1s} ${p1.brk}% / ${p2s} ${p2.brk}%`,       valore:avgBrk>41?"over":avgBrk<34?"under":"neutro",  note:`Media ${avgBrk.toFixed(0)}% — ${avgBrk>41?"alta conversione break (>41%) → game a rischio → over":avgBrk<34?"bassa conversione → servizi al sicuro → under":"nella media"}`},
     {label:`Superficie [peso 2]: ${sup}`,                                          valore:isTerra?"over":isFast?"under":"neutro",        note:isTerra?"Terra: media 23-25 giochi":isFast?"Erba/Indoor: media 19-21":"Cemento: 21-23 giochi"},
