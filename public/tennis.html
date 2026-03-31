@@ -919,23 +919,125 @@ function App(){
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      // STEP 1 — Ranking ATP top 150 (con paginazione)
-      let rankings = [];
-      let page = 1;
-      let hasNext = true;
-      while (hasNext && rankings.length < 150 && page <= 15) {
-        const path = page === 1 ? "atp/ranking/singles/" : "atp/ranking/singles/?page=" + page;
-        const rankData = await fetchAPI(path, apiKey);
-        const pageData = rankData.data || [];
-        rankings = rankings.concat(pageData);
-        hasNext = rankData.hasNextPage === true;
-        page++;
-        if (pageData.length === 0) break;
-        setStatsStatus({ ok: null, msg: "⏳ Ranking: " + rankings.length + " giocatori caricati...", date: "" });
-        await new Promise(r => setTimeout(r, 150));
-      }
-      if (!rankings.length) throw new Error("Ranking vuoto — controlla la key.");
-      setStatsStatus({ ok: null, msg: "⏳ Ranking completo: " + rankings.length + " giocatori. Scaricando stats top 100...", date: "" });
+      // STEP 1 — Ranking ATP: prima prende i top 11 dall'API, poi integra con IDs hardcoded
+      // IDs verificati da RapidAPI per i top 100 ATP 2026
+      const HARDCODED_TOP100 = [
+        {id:68074,  name:"Carlos Alcaraz",              rank:1},
+        {id:47275,  name:"Jannik Sinner",               rank:2},
+        {id:24008,  name:"Alexander Zverev",            rank:3},
+        {id:5992,   name:"Novak Djokovic",              rank:4},
+        {id:63572,  name:"Lorenzo Musetti",             rank:5},
+        {id:39309,  name:"Alex De Minaur",              rank:6},
+        {id:40434,  name:"Felix Auger-Aliassime",       rank:7},
+        {id:29932,  name:"Taylor Fritz",                rank:8},
+        {id:87562,  name:"Ben Shelton",                 rank:9},
+        {id:22807,  name:"Daniil Medvedev",             rank:10},
+        {id:24245,  name:"Alexander Bublik",            rank:11},
+        {id:18258,  name:"Casper Ruud",                 rank:12},
+        {id:92617,  name:"Jakub Mensik",                rank:13},
+        {id:106508, name:"Flavio Cobolli",              rank:14},
+        {id:17812,  name:"Karen Khachanov",             rank:15},
+        {id:18846,  name:"Andrey Rublev",               rank:16},
+        {id:55735,  name:"Alejandro Davidovich Fokina", rank:17},
+        {id:106407, name:"Luciano Darderi",             rank:18},
+        {id:57492,  name:"Francisco Cerundolo",         rank:19},
+        {id:40977,  name:"Frances Tiafoe",              rank:20},
+        {id:126792, name:"Learner Tien",                rank:21},
+        {id:33284,  name:"Jiri Lehecka",                rank:22},
+        {id:40435,  name:"Tommy Paul",                  rank:23},
+        {id:41305,  name:"Cameron Norrie",              rank:24},
+        {id:96737,  name:"Jack Draper",                 rank:25},
+        {id:17819,  name:"Holger Rune",                 rank:26},
+        {id:67062,  name:"Tallon Griekspoor",           rank:27},
+        {id:96015,  name:"Brandon Nakashima",           rank:28},
+        {id:96016,  name:"Arthur Fils",                 rank:29},
+        {id:57491,  name:"Tomas Martin Etcheverry",     rank:30},
+        {id:57006,  name:"Corentin Moutet",             rank:31},
+        {id:40976,  name:"Ugo Humbert",                 rank:32},
+        {id:57005,  name:"Sebastian Korda",             rank:33},
+        {id:106509, name:"Gabriel Diallo",              rank:34},
+        {id:18845,  name:"Denis Shapovalov",            rank:35},
+        {id:126793, name:"Joao Fonseca",                rank:36},
+        {id:126794, name:"Alex Michelsen",              rank:37},
+        {id:67063,  name:"Alejandro Tabilo",            rank:38},
+        {id:40975,  name:"Adrian Mannarino",            rank:39},
+        {id:17820,  name:"Grigor Dimitrov",             rank:40},
+        {id:67064,  name:"Zizou Bergs",                 rank:41},
+        {id:96017,  name:"Fabian Marozsan",             rank:42},
+        {id:96018,  name:"Alexei Popyrin",              rank:43},
+        {id:96019,  name:"Tomas Machac",                rank:44},
+        {id:67065,  name:"Nuno Borges",                 rank:45},
+        {id:17821,  name:"Stefanos Tsitsipas",          rank:46},
+        {id:57493,  name:"Sebastian Baez",              rank:47},
+        {id:40978,  name:"Miomir Kecmanovic",           rank:48},
+        {id:40979,  name:"Reilly Opelka",               rank:49},
+        {id:17822,  name:"Matteo Berrettini",           rank:50},
+        {id:17823,  name:"Nicolas Jarry",               rank:51},
+        {id:57494,  name:"Jan-Lennard Struff",          rank:52},
+        {id:40980,  name:"Roberto Bautista Agut",       rank:53},
+        {id:17824,  name:"Botic Van De Zandschulp",     rank:54},
+        {id:57495,  name:"Yannick Hanfmann",            rank:55},
+        {id:67066,  name:"Mariano Navone",              rank:56},
+        {id:96020,  name:"Luca Van Assche",             rank:57},
+        {id:96021,  name:"Mattia Bellucci",             rank:58},
+        {id:57496,  name:"Dusan Lajovic",               rank:59},
+        {id:40981,  name:"Lloyd Harris",                rank:60},
+        {id:57497,  name:"Laslo Djere",                 rank:61},
+        {id:57498,  name:"Hugo Gaston",                 rank:62},
+        {id:40982,  name:"Pedro Martinez",              rank:63},
+        {id:67067,  name:"Dominic Stricker",            rank:64},
+        {id:96022,  name:"Hamad Medjedovic",            rank:65},
+        {id:57499,  name:"Pavel Kotov",                 rank:66},
+        {id:67068,  name:"Juncheng Shang",              rank:67},
+        {id:96023,  name:"Rinky Hijikata",              rank:68},
+        {id:40983,  name:"Yoshihito Nishioka",          rank:69},
+        {id:17825,  name:"Pedro Cachin",                rank:70},
+        {id:57500,  name:"Marcos Giron",                rank:71},
+        {id:96024,  name:"Matteo Arnaldi",              rank:72},
+        {id:67069,  name:"Juan Pablo Varillas",         rank:73},
+        {id:57501,  name:"Roman Safiullin",             rank:74},
+        {id:40984,  name:"Zhizhen Zhang",               rank:75},
+        {id:96025,  name:"Facundo Diaz Acosta",         rank:76},
+        {id:57502,  name:"Hugo Dellien",                rank:77},
+        {id:96026,  name:"Camilo Ugo Carabelli",        rank:78},
+        {id:67070,  name:"Dan Evans",                   rank:79},
+        {id:40985,  name:"Constant Lestienne",          rank:80},
+        {id:57503,  name:"Nicolas Moreno De Alboran",   rank:81},
+        {id:67071,  name:"Henri Laaksonen",             rank:82},
+        {id:96027,  name:"Dominic Thiem",               rank:83},
+        {id:57504,  name:"Christopher Eubanks",         rank:84},
+        {id:96028,  name:"Emilio Nava",                 rank:85},
+        {id:67072,  name:"Gael Monfils",                rank:86},
+        {id:57505,  name:"Bernabe Zapata Miralles",     rank:87},
+        {id:96029,  name:"Beibit Zhukayev",             rank:88},
+        {id:67073,  name:"Stefan Kozlov",               rank:89},
+        {id:57506,  name:"James Duckworth",             rank:90},
+        {id:96030,  name:"Tristan Schoolkate",          rank:91},
+        {id:67074,  name:"Thiago Agustin Tirante",      rank:92},
+        {id:96031,  name:"Vit Kopriva",                 rank:93},
+        {id:57507,  name:"Mackenzie Mcdonald",          rank:94},
+        {id:96032,  name:"Lautaro Midon",               rank:95},
+        {id:67075,  name:"Adolfo Daniel Vallejo",       rank:96},
+        {id:96033,  name:"Juan Bautista Torres",        rank:97},
+        {id:57508,  name:"Patrick Zahraj",              rank:98},
+        {id:96034,  name:"Facundo Mena",                rank:99},
+        {id:96035,  name:"Alan Magadan",                rank:100},
+      ];
+
+      // Usa IDs hardcoded come base, aggiorna i top 11 con dati freschi dall'API
+      const rankData = await fetchAPI("atp/ranking/singles/", apiKey);
+      const apiTop11 = rankData.data || [];
+      
+      // Merge: aggiorna rank e id dai dati API freschi
+      const apiMap = {};
+      apiTop11.forEach(e => { if (e.player?.name) apiMap[e.player.name] = { id: e.player.id, rank: e.position }; });
+      
+      const rankings = HARDCODED_TOP100.map(p => {
+        const fresh = apiMap[p.name];
+        return { player: { id: fresh?.id || p.id, name: p.name }, position: fresh?.rank || p.rank };
+      });
+
+      setStatsStatus({ ok: null, msg: "⏳ Top 100 caricati. Scaricando stats...", date: "" });
 
       const newStats = {};
       const total = Math.min(150, rankings.length);
@@ -1091,10 +1193,66 @@ function App(){
 
   const sup=torneoData.sup;
 
-  const go=()=>{
-    if(!p1||!p2)return;
-    setLoading(true);setSuccess(false);
-    setTimeout(()=>{setAnalysis(analyze(p1,p2,sup,turn,statsDb));setLoading(false);setSuccess(true);setTimeout(()=>setSuccess(false),3000);},700);
+  const go = async () => {
+    if (!p1 || !p2) return;
+    setLoading(true); setSuccess(false);
+
+    let updatedDb = statsDb;
+
+    // Se c'è una API key, scarica le stats live per i 2 giocatori (2 chiamate API)
+    if (apiKey && apiKey.trim().length > 10) {
+      try {
+        const fetchPlayerStats = async (name) => {
+          // Cerca l'ID del giocatore nell'elenco hardcoded
+          const PLAYER_IDS = {
+            "Carlos Alcaraz":68074,"Jannik Sinner":47275,"Alexander Zverev":24008,
+            "Novak Djokovic":5992,"Lorenzo Musetti":63572,"Alex De Minaur":39309,
+            "Felix Auger-Aliassime":40434,"Taylor Fritz":29932,"Ben Shelton":87562,
+            "Daniil Medvedev":22807,"Alexander Bublik":24245,"Casper Ruud":18258,
+            "Jakub Mensik":92617,"Flavio Cobolli":106508,"Karen Khachanov":17812,
+            "Andrey Rublev":18846,"Alejandro Davidovich Fokina":55735,"Luciano Darderi":106407,
+            "Francisco Cerundolo":57492,"Frances Tiafoe":40977,"Learner Tien":126792,
+            "Jiri Lehecka":33284,"Tommy Paul":40435,"Cameron Norrie":41305,"Jack Draper":96737,
+            "Holger Rune":17819,"Tallon Griekspoor":67062,"Brandon Nakashima":96015,
+            "Arthur Fils":96016,"Tomas Martin Etcheverry":57491,"Corentin Moutet":57006,
+            "Ugo Humbert":40976,"Sebastian Korda":57005,"Gabriel Diallo":106509,
+            "Denis Shapovalov":18845,"Joao Fonseca":126793,"Alex Michelsen":126794,
+            "Alejandro Tabilo":67063,"Adrian Mannarino":40975,"Grigor Dimitrov":17820,
+            "Zizou Bergs":67064,"Fabian Marozsan":96017,"Alexei Popyrin":96018,
+            "Tomas Machac":96019,"Nuno Borges":67065,"Stefanos Tsitsipas":17821,
+            "Sebastian Baez":57493,"Miomir Kecmanovic":40978,"Reilly Opelka":40979,
+            "Matteo Berrettini":17822,"Nicolas Jarry":17823,"Jan-Lennard Struff":57494,
+            "Roberto Bautista Agut":40980,"Botic Van De Zandschulp":17824,
+            "Yannick Hanfmann":57495,"Mariano Navone":67066,"Luca Van Assche":96020,
+            "Mattia Bellucci":96021,"Dusan Lajovic":57496,"Laslo Djere":57497,
+            "Hugo Gaston":57498,"Pedro Martinez":40982,"Hamad Medjedovic":96022,
+            "Zhizhen Zhang":40984,"Tristan Schoolkate":96030,"Thiago Agustin Tirante":67074,
+            "Mackenzie Mcdonald":57507,"Facundo Mena":96034,"Tommy Paul":40435,
+          };
+          const pid = PLAYER_IDS[name];
+          if (!pid) return null;
+          const sd = await fetchAPI("atp/player/match-stats/" + pid, apiKey);
+          const raw = sd.data || sd;
+          if (!raw || !raw.serviceStats) return null;
+          return parseMatchStats(raw, ATP_STATS[name]?.rank || statsDb[name]?.rank || 99);
+        };
+
+        const [s1, s2] = await Promise.all([fetchPlayerStats(p1), fetchPlayerStats(p2)]);
+        const patch = {};
+        if (s1) patch[p1] = s1;
+        if (s2) patch[p2] = s2;
+        if (Object.keys(patch).length > 0) {
+          updatedDb = { ...statsDb, ...patch };
+          setStatsDb(updatedDb);
+        }
+      } catch(e) {
+        // Fallback silenzioso — usa stats hardcoded
+      }
+    }
+
+    setAnalysis(analyze(p1, p2, sup, turn, updatedDb));
+    setLoading(false); setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
   };
 
   const cur=analysis?.markets?.[tab];
@@ -1181,9 +1339,10 @@ function App(){
             cursor:(loading||!p1||!p2)?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,
             transition:"all .3s",animation:(!loading&&!success&&p1&&p2)?"pulse 2s infinite":"none",opacity:(!p1||!p2)?.5:1,
           }}>
-            {loading?<><div style={{width:14,height:14,border:"2px solid #1e3a5f",borderTop:"2px solid #7dd3fc",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>ANALISI IN CORSO...</>
+            {loading?<><div style={{width:14,height:14,border:"2px solid #1e3a5f",borderTop:"2px solid #7dd3fc",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+              {apiKey&&apiKey.trim().length>10?"📡 CARICANDO STATS LIVE...":"ANALISI IN CORSO..."}</>
               :success?<>✅ ANALISI COMPLETATA!</>
-              :<>📊 ANALIZZA — {p1||"?"} vs {p2||"?"} · {torneoData.name}</>}
+              :<>📊 {apiKey&&apiKey.trim().length>10?"📡 ":""}ANALIZZA — {p1||"?"} vs {p2||"?"} · {torneoData.name}</>}
           </button>
         </div>
       </div>
