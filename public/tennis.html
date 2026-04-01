@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ATP Betting Analyzer v1775038481</title>
+  <title>ATP Betting Analyzer v1775038769</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
@@ -913,7 +913,7 @@ function App(){
   const [editMode,setEditMode]=useState(false);
   const [newFatt,setNewFatt]=useState({label:"",valore:"neutro",note:""});
   const [newH2h,setNewH2h]=useState({anno:"",torneo:"",superficie:"",punteggio:"",giochi:"",vincitore:""});
-  const [statsDb,setStatsDb]=useState({...ATP_STATS}); // inizializzato con tutti i top 100
+  const [statsDb,setStatsDb]=useState({}); // sovrascritture live — ATP_STATS è sempre la base
   const [statsLoading,setStatsLoading]=useState(false);
   const [statsStatus,setStatsStatus]=useState(null);
   const [apiKey,setApiKey]=useState("");
@@ -1284,7 +1284,7 @@ function App(){
     if (!p1 || !p2) return;
     setLoading(true); setSuccess(false);
 
-    let updatedDb = statsDb;
+    let updatedDb = { ...ATP_STATS, ...statsDb }; // ATP_STATS sempre aggiornato come base
 
     // Se c'è una API key, scarica le stats live per i 2 giocatori (2 chiamate API)
     if (apiKey && apiKey.trim().length > 10) {
