@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ATP Betting Analyzer v1775038769</title>
+  <title>ATP Betting Analyzer v1775039211</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
@@ -1321,6 +1321,9 @@ function App(){
           const sd = await fetchAPI("atp/player/match-stats/" + pid, apiKey);
           const raw = sd.data || sd;
           if (!raw || !raw.serviceStats) return null;
+          // Verifica che i dati non siano tutti null (API non ha stats per questo giocatore)
+          const s = raw.serviceStats || {};
+          if (!s.acesGm && !s.firstServeGm && !s.winningOnFirstServeGm) return null;
           return parseMatchStats(raw, ATP_STATS[name]?.rank || statsDb[name]?.rank || 99);
         };
 
